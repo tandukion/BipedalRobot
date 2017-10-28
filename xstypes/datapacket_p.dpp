@@ -1,0 +1,71 @@
+datapacket_p.c.o: datapacket_p.cpp datapacket_p.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsmessage.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xstypesconfig.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xstypedefs.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/pstdint.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsbytearray.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsarray.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsstring.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsdataidentifier.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsdataidentifiervalue.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsxbusmessageid.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsdeviceid.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xstimestamp.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsquaternion.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsmath.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsushortvector.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsvector3.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsvector.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsscrdata.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsushortvector.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xstriggerindicationdata.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xseuler.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsmatrix3x3.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsmatrix.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsrange.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsutctime.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsrawgnsspvtdata.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsrawgnsssatinfo.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsrawgpsdop.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsrawgpssol.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsrawgpssvinfo.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsrawgpstimeutc.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsbytearray.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xssnapshot.h \
+ /home/dwindra/code/InvertedPendulum/include/xsens/xsdeviceid.h
+datapacket_p.cpp:
+datapacket_p.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsmessage.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xstypesconfig.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xstypedefs.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/pstdint.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsbytearray.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsarray.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsstring.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsdataidentifier.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsdataidentifiervalue.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsxbusmessageid.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsdeviceid.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xstimestamp.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsquaternion.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsmath.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsushortvector.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsvector3.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsvector.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsscrdata.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsushortvector.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xstriggerindicationdata.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xseuler.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsmatrix3x3.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsmatrix.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsrange.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsutctime.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsrawgnsspvtdata.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsrawgnsssatinfo.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsrawgpsdop.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsrawgpssol.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsrawgpssvinfo.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsrawgpstimeutc.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsbytearray.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xssnapshot.h:
+/home/dwindra/code/InvertedPendulum/include/xsens/xsdeviceid.h:
