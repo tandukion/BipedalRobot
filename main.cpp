@@ -140,7 +140,7 @@ int muscle_ch [NUM_OF_MUSCLE] = {IL_R,GMAX_R,VAS_R,HAM_R,TA_R,SOL_R,ADD_R,
 																 IL_L,GMAX_L,VAS_L,HAM_L,TA_L,SOL_L,ADD_L};
 
 /* Potentiometer reference for zero degree */
-int Pot_straight [10] = {2128,2298,2289,3120,2371,2130,1417,1948,2131,2028};
+int Pot_straight [10] = {2128,2298,2289,3120,2336,2130,1417,1948,2131,2028};
 
 /* Variable for IMU Data */
 struct IMUDataArray{
@@ -809,6 +809,7 @@ void Reset_Valve (){
 	for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
 		if (i%16 < (NUM_OF_MUSCLE/2)){
 			setState(i,0.0);
+			printf("Valve #%d off\n",i);
 		}
 	}
 }
@@ -907,11 +908,6 @@ int main(int argc, char *argv[]) {
 	clock_t TimeData[SampleNum];
 	//int ValveNum = 1;
 
-	// Initialize with 0 MPa
-	for (ch_num = 0; ch_num< 16; ch_num++){
-	  setState(ch_num, 0);
-	}
-
 
 	clock_t laps1,laps2;
 
@@ -927,6 +923,10 @@ int main(int argc, char *argv[]) {
 	    /**/
 	    // config_IMU(&device,&mtPort, outputMode, outputSettings);
 			laps1 = clock();
+
+
+			setState(0,0.5);
+
 	    for (i=0;i<SampleNum;i++){
 	      read_sensor_all(i,SensorData,JointAngle);
 	      //		measure_IMU(&device,&mtPort, outputMode, outputSettings, &quaternion,&euler,&calData,&sample_time);
