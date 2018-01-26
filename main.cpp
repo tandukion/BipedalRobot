@@ -140,7 +140,7 @@ int muscle_ch [NUM_OF_MUSCLE] = {IL_R,GMAX_R,VAS_R,HAM_R,TA_R,SOL_R,ADD_R,
 																 IL_L,GMAX_L,VAS_L,HAM_L,TA_L,SOL_L,ADD_L};
 
 /* Potentiometer reference for zero degree */
-int Pot_straight [10] = {2128,2298,2305,3120,2336,2130,1446,1948,2118,2010};
+int Pot_straight [10] = {2128,2346,2305,3090,2336,2167,1446,1948,2118,2010};
 
 /* Variable for IMU Data */
 struct IMUDataArray{
