@@ -1,3 +1,8 @@
+/*
+	Bipedal Musculoskeletal Robot Program
+	2017 Dwindra Sulistyoutomo
+*/
+
 #include <stdio.h>
 #include <signal.h>
 #include <stdint.h>
@@ -42,21 +47,33 @@
 #endif
 
 /* for sensors */
+#define pin_cs_sensor P9_13 // 0_31=31
 #define pin_clk_sensor P9_12 // 1_28=60
 #define pin_din_sensor  P9_11 // 0_30=30
 #define pin_dout1_sensor P9_14 // 1_18=50
 #define pin_dout2_sensor  P9_15 // 1_16=48
-#define pin_cs_sensor P9_13 // 0_31=31
-#define NUM_ADC_PORT 8
+#define pin_dout3_sensor  P9_26 // 0_14=14
+#define pin_dout4_sensor  P9_27 // 3_19=115
+
 #define NUM_ADC 2
+#define NUM_ADC_PORT 8
+
+#define NUM_OF_SENSOR 10
+#define NUM_OF_POT_SENSOR 10
+#define NUM_OF_PRES_SENSOR 0
 
 /* for valves */
-#define pin_spi_cs2  P9_42 // 0_7 =7 // P9_28 // 3_17=113 //
-#define pin_spi_cs1  P9_16 // 1_19=51 // P9_27 // 3_19=115 //
+#define pin_spi_sclk P9_21 // 0_3=3
 #define pin_spi_mosi P9_30 // 3_16=112
-#define pin_spi_sclk P9_21 // 0_3=3 // P9_31 // 3_14=110 //
+#define pin_spi_cs1  P9_16 // 1_19=51
+#define pin_spi_cs2  P9_42 // 0_7 =7
+#define pin_spi_cs3  P9_23 // 1_17=49
+#define pin_spi_cs4  P9_24 // 0_15 =15
+
 #define pin_spi_other P9_22 // 0_2=2
+
 #define NUM_OF_CHANNELS 16
+#define NUM_DAC 2
 
 /* for IMU */
 #define PORTNAME "/dev/ttyUSB0"
@@ -69,14 +86,42 @@
 #define NUM_OF_AINS 7
 #define AIO_NUM 7
 
-/* INDEX FOR SENSOR */
-#define PIN_POT_1 0     // Pin for Potensiometer 1
+/* INDEX PIN for Sensor */
+#define PIN_POT1 0     // Pin for Potensiometer 1
+#define PIN_POT2 1     // Pin for Potensiometer 1
+#define PIN_POT3 2     // Pin for Potensiometer 1
+#define PIN_POT4 3     // Pin for Potensiometer 1
+#define PIN_POT5 4     // Pin for Potensiometer 1
+#define PIN_POT6 5     // Pin for Potensiometer 1
+#define PIN_POT7 6     // Pin for Potensiometer 1
+#define PIN_POT8 7     // Pin for Potensiometer 1
+#define PIN_POT9 0     // Pin for Potensiometer 1
+#define PIN_POT10 1     // Pin for Potensiometer 1
+
 #define PIN_PRES_1 1    // Pin for Pressure Sensor 1
 #define PIN_PRES_2 2    // Pin for Pressure Sensor 2
 
+/* INDEX PIN for Valve */
+#define NUM_OF_MUSCLE 14	// Number of muscle/valve
+
+#define IL_R		0
+#define GMAX_R	1
+#define VAS_R		2
+#define HAM_R		3
+#define TA_R 		4
+#define SOL_R 	5
+#define ADD_R 	6
+
+#define IL_L		16
+#define GMAX_L	17
+#define VAS_L		18
+#define HAM_L		19
+#define TA_L 		20
+#define SOL_L 	21
+#define ADD_L 	22
+
 /* VALUE */
 #define MAX_PRESSURE 0.6
-#define NUM_OF_MUSCLE 2
 #define MAX_SAMPLE_NUM 10000
 
 /*************************************************************/
@@ -86,6 +131,18 @@
 int SampleNum = 10000;
 unsigned long SensorValue[NUM_ADC][NUM_ADC_PORT];
 
+
+/* Table for muscle valve number and sensor number */
+int muscle_sensor [NUM_OF_MUSCLE] = {PIN_PRES_1,PIN_PRES_2};
+
+// list of muscle channel
+int muscle_ch [NUM_OF_MUSCLE] = {IL_R,GMAX_R,VAS_R,HAM_R,TA_R,SOL_R,ADD_R,
+																 IL_L,GMAX_L,VAS_L,HAM_L,TA_L,SOL_L,ADD_L};
+
+/* Potentiometer reference for zero degree */
+int Pot_straight [10] = {2248,2298,2289,3120,2371,2130,1417,1948,2131,2028};
+
+/* Variable for IMU Data */
 struct IMUDataArray{
 	XsCalibratedData calData[MAX_SAMPLE_NUM];
 	XsQuaternion quaternion[MAX_SAMPLE_NUM];
@@ -94,9 +151,6 @@ struct IMUDataArray{
 };
 
 IMUDataArray IMUData;
-
-
-/* Variable for IMU Data */
 DeviceClass device;
 XsPortInfo mtPort;
 XsQuaternion quaternion;
@@ -108,10 +162,6 @@ unsigned int sample_time;
 char portName[20] = "/dev/ttyUSB0";
 //XsOutputMode outputMode = XOM_Orientation; // output orientation data
 //XsOutputSettings outputSettings = XOS_OrientationMode_Quaternion; // output orientation data as quaternion
-
-/* Table for muscle valve number and sensor number */
-int muscle_sensor [NUM_OF_MUSCLE]= {PIN_PRES_1,PIN_PRES_2};
-
 
 /**** analog sensors ****/
 PIN analog_pin[NUM_OF_AINS];
@@ -157,6 +207,8 @@ void set_OTHER(bool value) { digitalWrite(pin_spi_other, value); }
 void set_MOSI(bool value) { digitalWrite(pin_spi_mosi, value); }
 void setCS1(bool value){ digitalWrite(pin_spi_cs1, value); }
 void setCS2(bool value){ digitalWrite(pin_spi_cs2, value); }
+void setCS3(bool value){ digitalWrite(pin_spi_cs3, value); }
+void setCS4(bool value){ digitalWrite(pin_spi_cs4, value); }
 void set_clock_edge(bool value){ clock_edge = value; }
 bool get_MISO(void) { return false; } // dummy
 void wait_SPI(void){}
@@ -164,6 +216,8 @@ void wait_SPI(void){}
 // value 1: Enable chipx
 void chipSelect1(bool value){ setCS1(!value); wait_SPI(); wait_SPI(); }
 void chipSelect2(bool value){ setCS2(!value); wait_SPI(); wait_SPI(); }
+void chipSelect3(bool value){ setCS3(!value); wait_SPI(); wait_SPI(); }
+void chipSelect4(bool value){ setCS4(!value); wait_SPI(); wait_SPI(); }
 
 unsigned char transmit8bit(unsigned char output_data){
 	unsigned char input_data = 0;
@@ -203,11 +257,23 @@ void setDARegister(unsigned char ch, unsigned short dac_data){
 		transmit16bit(register_data);
 		chipSelect1(false);
 	}
-	else if (ch >= 8) {
+	else if ((ch >= 8) && (ch <16)) {
 		register_data = (((unsigned short)(ch & 0x0007) << 12) & 0x7000) | (dac_data & 0x0fff);
 		chipSelect2(true);
 		transmit16bit(register_data);
 		chipSelect2(false);
+	}
+	else if ((ch >= 16) && (ch <24)) {
+		register_data = (((unsigned short)(ch & 0x0007) << 12) & 0x7000) | (dac_data & 0x0fff);
+		chipSelect3(true);
+		transmit16bit(register_data);
+		chipSelect3(false);
+	}
+	else if ((ch >= 24) && (ch <32)) {
+		register_data = (((unsigned short)(ch & 0x0007) << 12) & 0x7000) | (dac_data & 0x0fff);
+		chipSelect4(true);
+		transmit16bit(register_data);
+		chipSelect4(false);
 	}
 }
 
@@ -228,12 +294,47 @@ void set_DIN_SENSOR(bool value) { digitalWrite(pin_din_sensor, value); }
 void set_CLK_SENSOR(bool value) { digitalWrite(pin_clk_sensor, value); }
 void set_CS_SENSOR(bool value) { digitalWrite(pin_cs_sensor, value); }
 int get_DOUT_SENSOR(int adc_num) {
-	if(adc_num==0){
-		digitalRead(pin_dout1_sensor);
+	switch (adc_num){
+		case 0: digitalRead(pin_dout1_sensor); break;
+		case 1: digitalRead(pin_dout2_sensor); break;
+		case 2: digitalRead(pin_dout3_sensor); break;
+		case 3: digitalRead(pin_dout4_sensor); break;
 	}
-	else{
-		digitalRead(pin_dout2_sensor);
-	}
+}
+
+/**************************************************/
+/*         ADCValue to Pressure                   */
+/**************************************************/
+
+double ADCtoPressure (unsigned long ADCValue){
+  /* Pressure Sensor Specification */
+  double alpha = 0.0009;
+  double beta = 0.04;
+  double Perror = 25; //Pressure error in kPa
+
+  /* Using error */
+  //double error = Perror*1*alpha;
+  /* Not using error */
+  double error = 0;
+
+  double temp;
+  temp = (((double)ADCValue/4096)-error-beta)/alpha /1000;
+  return temp;
+}
+
+/**************************************************/
+//         ADCValue to Angle
+// Desc  : Convert ADC value to Angle (Degree)
+// Input : ADCValue : Current ADC Value
+//				 Pot_ref	: ADC Value for 0 degree angle
+// Output: Sensor Val -> 1D array of Sensor Value in 1 ADC Board
+/**************************************************/
+
+double ADCtoAngle (unsigned long ADCValue, int Pot_ref){
+  double temp;
+  /* Output in degree */
+  temp = (((double) ADCValue - Pot_ref) /4096)*360;
+  return temp;
 }
 
 /***************************************************************/
@@ -252,37 +353,37 @@ unsigned long *read_sensor(unsigned long adc_num,unsigned long* sensorVal){
 
     for(pin_num=0;pin_num<NUM_ADC_PORT;pin_num++){
     	sVal=0x00;
-		set_CS_SENSOR(true);
-		set_CLK_SENSOR(false);
-		set_DIN_SENSOR(false);
-		set_CS_SENSOR(false);
+			set_CS_SENSOR(true);
+			set_CLK_SENSOR(false);
+			set_DIN_SENSOR(false);
+			set_CS_SENSOR(false);
 
     	commandout=pin_num;
     	commandout|=0x18;
     	commandout<<=3;
 
 	    for(i=0;i<5;i++){
-			if(commandout&0x80){
-				set_DIN_SENSOR(true);
-	  		}
-	  		else{
-				set_DIN_SENSOR(false);
-	  		}
-	  		commandout<<=1;
-	  		set_CLK_SENSOR(true);
-	  		set_CLK_SENSOR(false);
-      	}
-      	for(i=0;i<2;i++){
-			set_CLK_SENSOR(true);
-	    	set_CLK_SENSOR(false);
-      	}
-      	for(i=0;i<12;i++){
-			set_CLK_SENSOR(true);
-			sVal<<=1;
+				if(commandout&0x80){
+					set_DIN_SENSOR(true);
+		  	}
+		  	else{
+					set_DIN_SENSOR(false);
+		  	}
+		  	commandout<<=1;
+		  	set_CLK_SENSOR(true);
+		  	set_CLK_SENSOR(false);
+			}
+	    for(i=0;i<2;i++){
+				set_CLK_SENSOR(true);
+		    set_CLK_SENSOR(false);
+	    }
+	    for(i=0;i<12;i++){
+				set_CLK_SENSOR(true);
+				sVal<<=1;
 	  		if(get_DOUT_SENSOR(adc_num)){
 	    		sVal|=0x01;
 	    	}
-	  	set_CLK_SENSOR(false);
+		  	set_CLK_SENSOR(false);
     	}
     	sensorVal[pin_num]=sVal;
     }
@@ -298,7 +399,7 @@ unsigned long *read_sensor(unsigned long adc_num,unsigned long* sensorVal){
 //         - NUM_ADC_PORT : ADC board port number
 //     * There is no index here, only all the ADC Value on 1 time
 /***************************************************************/
-void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT]){
+void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], double *Angle){
   int j,k;
   unsigned long *tmp_val0;
   unsigned long tmp_val[NUM_ADC_PORT];
@@ -306,8 +407,17 @@ void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT
   for (j = 0; j< NUM_ADC; j++){
     tmp_val0=read_sensor(j,tmp_val);
     for (k = 0; k< NUM_ADC_PORT; k++){
+			// get only used ports
+			if (j*NUM_ADC_PORT + k >= NUM_OF_SENSOR)
+				break;
+
       SensorVal[index][j][k]=tmp_val0[k];
       //printf("[%d][%d] %lu\n",j,k,SensorVal[j][k]);
+
+			// Getting Angle from Potentiometer
+			if (j*NUM_ADC_PORT + k < NUM_OF_SENSOR){
+				Angle[j*NUM_ADC_PORT + k] = ADCtoAngle(tmp_val0[k],Pot_straight[j*NUM_ADC_PORT + k]);
+			}
     }
   }
 }
@@ -582,39 +692,6 @@ void init_sensor(void) {
 }
 
 
-/**************************************************/
-/*         ADCValue to Pressure                   */
-/**************************************************/
-
-double ADCtoPressure (unsigned long ADCValue){
-  /* Pressure Sensor Specification */
-  double alpha = 0.0009;
-  double beta = 0.04;
-  double Perror = 25; //Pressure error in kPa
-
-  /* Using error */
-  //double error = Perror*1*alpha;
-  /* Not using error */
-  double error = 0;
-
-  double temp;
-  temp = (((double)ADCValue/4096)-error-beta)/alpha /1000;
-  return temp;
-}
-
-/**************************************************/
-/*         ADCValue to Angle                      */
-/**************************************************/
-
-double ADCtoAngle (unsigned long ADCValue){
-  double temp;
-  double shift = 180;   //Shifting degree as 0
-  /* Output in degree */
-  temp = (((double)ADCValue/4096)*360) - shift;
-  return temp;
-}
-
-
 
 /*************************************************************/
 /**                    FILE WRITING                         **/
@@ -727,16 +804,28 @@ void fulllog(const char* message, unsigned long SensorVal[][NUM_ADC][NUM_ADC_POR
 /**                    TESTING FUNCTION                         **/
 /*************************************************************/
 
+void Reset_Valve (){
+	int i;
+	for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
+		if (i%16 < (NUM_OF_MUSCLE/2)){
+			setState(i,0.0);
+		}
+	}
+}
+
+
+
 /*===== Running test to print all the Sensor Data ======*/
 /* Read and print only ONCE for all sensor */
 void test_sensor (int SampleNum){
   int index,j,k;
   static unsigned long Value[MAX_SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
+	double Angle[NUM_OF_POT_SENSOR];
 
   //startlog("test_sensor");
 
   for(index=0;index<SampleNum;index++){
-    read_sensor_all(index,Value);
+    read_sensor_all(index,Value,Angle);
     /**/
     for (j = 0; j< NUM_ADC; j++){
       for (k = 0; k< NUM_ADC_PORT; k++){
@@ -756,7 +845,7 @@ void test_sensor (int SampleNum){
 /*======  Test one Muscle with Specific Pressure =======*/
 void test_valve (){
 
-  int mus_num;
+  int valve_num;
   static int i=0;
   double val,sensorval;
   static unsigned long Value[MAX_SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
@@ -766,56 +855,25 @@ void test_valve (){
   printf ("Testing muscle with %1lf pressure coef\n", val);
 
   while(1){
-    printf("Input channel number: ");
-    scanf ("%d",&mus_num);
-    printf ("Testing muscle number %d\n", mus_num);
+    printf("Input valve number: ");
+    scanf ("%d",&valve_num);
+    printf ("Testing muscle number %d\n", valve_num);
     printf("Input pressure coef : ");
     scanf ("%lf",&val);
     //printf ("%lf\n",val);
     if ((val>=0)&&(val<=1)){
-      setState(mus_num,val);
+      setState(valve_num,val);
       usleep(500000);
 
-      read_sensor_all(i,Value);
-      //sensorval = ADCtoPressure (SensorValue[0][muscle_sensor[mus_num]]);
-      sensorval = ADCtoPressure (Value[i][0][1]);
-      printf("%lf\n",sensorval);
-      sensorval = ADCtoPressure (Value[i][0][2]);
-      printf("%lf\n",sensorval);
+      //read_sensor_all(i,Value);
+      //sensorval = ADCtoPressure (Value[i][0][1]);
+      //printf("%lf\n",sensorval);
     }
     printf("--------\n");
     i++;
   }
 }
 
-//======= Testing assigning pressure sequentially from 1st to 2nd muscle (1 DOF) =====
-void test_valve_sequence (){
-  int i,j;
-  int mus_num;
-  double coef=0,sensorval;
-  static unsigned long Value[MAX_SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
-
-  usleep(5000000);
-
-  for (j=0;j<NUM_OF_MUSCLE;j++){
-    //printf("Input channel number: ");
-    //scanf ("%d",&mus_num);
-    mus_num=j;
-    printf ("Testing muscle number %d\n", mus_num);
-
-    coef=0;
-    for (i=0;i<30;i++){
-      setState(mus_num,coef);
-      usleep(500000);
-      coef+=0.01;
-
-      read_sensor_all(i,Value);
-      sensorval = ADCtoPressure (Value[i][0][muscle_sensor[mus_num]]);
-      printf("muscle #%d :%lf\n",mus_num,sensorval);
-    }
-    printf("--------\n");
-  }
-}
 
 
 /**********************************************************************************/
@@ -836,13 +894,16 @@ int main(int argc, char *argv[]) {
 
 	int i,j,k;
 	unsigned int ch_num;
-	for (i = 0; i < NUM_OF_CHANNELS; i++)
-		setState(i, 0.0);
+	// Valve initialization
+	Reset_Valve();
 
 
 	/* Variable for ADC Board Data */
 	unsigned long SensorData[SampleNum][NUM_ADC][NUM_ADC_PORT];
 	unsigned long ***SensorArray;
+
+	double JointAngle[NUM_OF_POT_SENSOR];
+
 	clock_t TimeData[SampleNum];
 	//int ValveNum = 1;
 
@@ -867,7 +928,7 @@ int main(int argc, char *argv[]) {
 	    // config_IMU(&device,&mtPort, outputMode, outputSettings);
 			laps1 = clock();
 	    for (i=0;i<SampleNum;i++){
-	      read_sensor_all(i,SensorData);
+	      read_sensor_all(i,SensorData,JointAngle);
 	      //		measure_IMU(&device,&mtPort, outputMode, outputSettings, &quaternion,&euler,&calData,&sample_time);
 
 				IMUData.calData[i] = calData;
@@ -881,13 +942,19 @@ int main(int argc, char *argv[]) {
 				// printing
 				printf("\r");
 				printf("[%d]\t",i);
+
 	      for (j = 0; j< NUM_ADC; j++){
 					for (k = 0; k< NUM_ADC_PORT; k++){
-						if ((j==1)&&(k>1))
+						// show only used port
+						if (j*NUM_ADC_PORT + k >= NUM_OF_SENSOR)
 							break;
 					  printf("%4lu\t", SensorData[i][j][k]);
 					}
 	      }
+
+				for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+					printf("%.1f\t", JointAngle[j]);
+				}
 	      /*
 				for (j=0;j<3;j++){
 					printf("%.3f\t", IMUData.calData[i].m_acc.value(j));
@@ -931,8 +998,54 @@ int main(int argc, char *argv[]) {
 	    test_valve();
 	    break;
 	  case '4':
-	    printf("Testing valve sequentially\n");
-	    test_valve_sequence();
+	    printf("Testing Preset Pressure\n");
+
+			double muscle_val[32]= {0};
+
+
+			double muscle_zero_deg_value [32] = { 0 };
+
+			muscle_val[IL_R] = 0.05;
+			muscle_val[IL_L] = 0.1;
+			muscle_val[GMAX_R] = 0.6;
+			muscle_val[GMAX_L] = 0.6;
+			//muscle_val[VAS_R] = 0.8;
+			//muscle_val[VAS_L] = 0.8;
+			//muscle_val[HAM_R] = 0.5;
+			//muscle_val[HAM_L] = 0.5;
+			//muscle_val[TA_R] = 0.44;
+			//muscle_val[TA_L] = 0.44;
+			//muscle_val[SOL_R] = 0.31;
+			//muscle_val[SOL_L] = 0.31;
+			muscle_val[ADD_R] = 0.3;
+			muscle_val[ADD_L] = 0.3;
+
+			for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
+				if (i%16 < (NUM_OF_MUSCLE/2)){
+					printf("%d\t",i);
+					printf("%.2lf\n", muscle_val[i]);
+					setState(i,muscle_val[i]);
+				}
+
+			}
+			printf ("\n");
+
+			printf("Sensor Data\n");
+			printf("Sample \tPot1 \tPot2 \tPot3 \tPot4 \tPot5 \tPot6 \tPot7 \tPot8 \tPot9 \tPot10 \n");
+
+			for (i=0;i<2000000;i++){
+
+				read_sensor_all(i,SensorData,JointAngle);
+				printf("\r");
+				printf("[%d]\t",i);
+				for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+					printf("%.1f\t", JointAngle[j]);
+				}
+
+			}
+
+			Reset_Valve();
+			printf ("Done\n");
 	    break;
 	  }
 	}
@@ -941,7 +1054,8 @@ int main(int argc, char *argv[]) {
 	  printf("1 : Testing Sensor\n");
 		printf("2 : Testing IMU Sensor\n");
 	  printf("3 : Testing a desired Muscle/Valve with desired pressure\n");
-	  printf("4 : Testing all Muscle/Valves sequentially\n");
+	  printf("4 : Testing all Muscle/Valves with preset pressure\n");
+	  printf("5 : \n");
 	}
 
 
