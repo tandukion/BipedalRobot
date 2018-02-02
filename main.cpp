@@ -140,7 +140,7 @@ int muscle_ch [NUM_OF_MUSCLE] = {IL_R,GMAX_R,VAS_R,HAM_R,TA_R,SOL_R,ADD_R,
 																 IL_L,GMAX_L,VAS_L,HAM_L,TA_L,SOL_L,ADD_L};
 
 /* Potentiometer reference for zero degree */
-int Pot_straight [10] = {2128,2346,2305,3090,2336,2167,1446,1948,2118,2010};
+int Pot_straight [10] = {2128,2346,2305,3090,2336,2167,1446,1876,2118,2010};
 
 /* Variable for IMU Data */
 struct IMUDataArray{
@@ -415,11 +415,17 @@ void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT
       //printf("[%d][%d] %lu\n",j,k,SensorVal[j][k]);
 
 			// Getting Angle from Potentiometer
-			if (j*NUM_ADC_PORT + k < NUM_OF_SENSOR){
+			if (j*NUM_ADC_PORT + k < NUM_OF_POT_SENSOR){
 				Angle[j*NUM_ADC_PORT + k] = ADCtoAngle(tmp_val0[k],Pot_straight[j*NUM_ADC_PORT + k]);
 			}
     }
   }
+	// Adjusting Angle direction
+	Angle[0] = -1* Angle[0];
+	Angle[3] = -1* Angle[3];
+	Angle[4] = -1* Angle[4];
+	Angle[6] = -1* Angle[6];
+	Angle[8] = -1* Angle[8];
 }
 
 
@@ -875,6 +881,22 @@ void test_valve (){
   }
 }
 
+// Bang-Bang Controller Test
+void BangBang (double SetPoint, double RefPoint, int UpMuscleChannel, int DownMuscleChannel){
+	if (RefPoint < SetPoint){
+		setState(UpMuscleChannel,0.3);
+		setState(DownMuscleChannel,0);
+	}
+	else if (RefPoint > SetPoint){
+		setState(UpMuscleChannel,0);
+		setState(DownMuscleChannel,0.3);
+	}
+	else{
+		setState(UpMuscleChannel,0);
+		setState(DownMuscleChannel,0);
+	}
+}
+
 
 
 /**********************************************************************************/
@@ -895,8 +917,6 @@ int main(int argc, char *argv[]) {
 
 	int i,j,k;
 	unsigned int ch_num;
-	// Valve initialization
-	Reset_Valve();
 
 
 	/* Variable for ADC Board Data */
@@ -904,12 +924,16 @@ int main(int argc, char *argv[]) {
 	unsigned long ***SensorArray;
 
 	double JointAngle[NUM_OF_POT_SENSOR];
+	double SetPoint_Angle[NUM_OF_POT_SENSOR];
 
 	clock_t TimeData[SampleNum];
+	clock_t laps1,laps2;
 	//int ValveNum = 1;
 
 
-	clock_t laps1,laps2;
+	// Valve initialization
+	Reset_Valve();
+
 
 	if (argc==2){
 	  switch (*argv[1]){
@@ -1006,7 +1030,7 @@ int main(int argc, char *argv[]) {
 
 			double muscle_zero_deg_value [32] = { 0 };
 
-			muscle_val[IL_R] = 0.05;
+			muscle_val[IL_R] = 0.1;
 			muscle_val[IL_L] = 0.1;
 			muscle_val[GMAX_R] = 0.6;
 			muscle_val[GMAX_L] = 0.6;
@@ -1025,7 +1049,7 @@ int main(int argc, char *argv[]) {
 				if (i%16 < (NUM_OF_MUSCLE/2)){
 					printf("%d\t",i);
 					printf("%.2lf\n", muscle_val[i]);
-					//setState(i,muscle_val[i]);
+					setState(i,muscle_val[i]);
 				}
 
 			}
