@@ -2,9 +2,10 @@ NAME = ../lib/libgpiommap.a
 TARGET := ../lib/libxdevice.a
 
 SRC = gpio.c
-OBJ = $(SRC:.c=.o)
+#OBJ = $(SRC:.c=.o)
+OBJ = $(SRC:.c=.c.o)
 
-CPP_FILES := deviceclass.cpp
+CPP_FILES := $(wildcard *.cpp)
 C_FILES := conio.c
 OBJECTS := $(CPP_FILES:.cpp=.cpp.o) $(C_FILES:.c=.c.o)
 CFLAGS = -g -I. -I../include
@@ -21,7 +22,7 @@ all: $(NAME) $(TARGET)
 $(NAME): $(OBJ)
 	ar rcs $@ $^
 #	ar -rc $(NAME) $(OBJ)
-#	ranlib $(NAME)
+	ranlib $(NAME)
 
 $(TARGET): $(OBJECTS)
 	ar rcs $@ $^

@@ -15,6 +15,22 @@
 #include <stdbool.h>
 #include <time.h>
 #include <string.h>
+#include <chrono>
+
+#include "deviceclass.h"
+
+#include <iostream>
+#include <iomanip>
+#include <stdexcept>
+#include <string>
+#include <sstream>
+#include <fstream>
+
+#ifdef __GNUC__
+#include "conio.h" // for non ANSI _kbhit() and _getch()
+#else
+#include <conio.h>
+#endif
 
 /* For Xsens IMU */
 #include <xsens/xsportinfoarray.h>
@@ -32,19 +48,9 @@
 #include <xcommunication/int_xsdatapacket.h>
 #include <xcommunication/enumerateusbdevices.h>
 
-#include "deviceclass.h"
-
-#include <iostream>
-#include <iomanip>
-#include <stdexcept>
-#include <string>
-#include <sstream>
-
-#ifdef __GNUC__
-#include "conio.h" // for non ANSI _kbhit() and _getch()
-#else
-#include <conio.h>
-#endif
+/* Arduino PID Library */
+#include <PID_v1.h>
+#include <PID_AutoTune_v0.h>
 
 /* for sensors */
 #define pin_cs_sensor P9_13 // 0_31=31
@@ -111,6 +117,10 @@
 #define TA_R 		4
 #define SOL_R 	5
 #define ADD_R 	6
+#define ABD_R 	7
+#define TP_R		8
+#define FB_R		9
+#define RF_R		10
 
 #define IL_L		16
 #define GMAX_L	17
@@ -119,28 +129,53 @@
 #define TA_L 		20
 #define SOL_L 	21
 #define ADD_L 	22
+#define ABD_L 	23
+#define TP_L		24
+#define FB_L		25
+#define RF_L		26
 
 /* VALUE */
-#define MAX_PRESSURE 0.6
-#define MAX_SAMPLE_NUM 10000
+#define MAX_PRESSURE 0.8
+#define MIN_PRESSURE 0
+// Default Pressure
+#define PRES_DEF 0.3
+
+#define MAX_SAMPLE_NUM 100000
+
 
 /*************************************************************/
 /**                   GLOBAL VARIABLES                      **/
 /*************************************************************/
 
-int SampleNum = 10000;
+long SampleNum = 100000;
 unsigned long SensorValue[NUM_ADC][NUM_ADC_PORT];
 
+/* for sampling time */
+std::chrono::system_clock::time_point StartTimePoint, EndTimePoint;
+double TimeData[MAX_SAMPLE_NUM];
 
 /* Table for muscle valve number and sensor number */
 int muscle_sensor [NUM_OF_MUSCLE] = {PIN_PRES_1,PIN_PRES_2};
 
-// list of muscle channel
+/* Table for muscle valve */
 int muscle_ch [NUM_OF_MUSCLE] = {IL_R,GMAX_R,VAS_R,HAM_R,TA_R,SOL_R,ADD_R,
 																 IL_L,GMAX_L,VAS_L,HAM_L,TA_L,SOL_L,ADD_L};
 
+/* muscle pair for a joint */
+int muscle_pair [NUM_OF_POT_SENSOR][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
+																					{ABD_R,ADD_R}, {ABD_L,ADD_L},
+																					{VAS_R,HAM_R}, {VAS_L,HAM_L},
+																					{TA_R,SOL_R}, {TA_L,SOL_L},
+																					{FB_R,TP_R}, {FB_L,TP_L}
+																				};
+
+
 /* Potentiometer reference for zero degree */
 int Pot_straight [10] = {2128,2346,2305,3090,2336,2167,1446,1876,2118,2010};
+
+// Angle on same pressure p=0.3
+int Pot_Psame 		[10] = {	1820,	2665,	2383,	3034,	2641,	1817,	1573,	1759,	2199,	1931};
+double Angle_Psame [10] = {	27.1,	28.0,	2.3,	4.9, -26.8,-30.8,-11.2,-10.3, -7.1,	-6.9};
 
 /* Variable for IMU Data */
 struct IMUDataArray{
@@ -428,6 +463,19 @@ void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT
 	Angle[8] = -1* Angle[8];
 }
 
+void printSensorVal (int i, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT]){
+	int j,k;
+
+	for (j = 0; j< NUM_ADC; j++){
+		for (k = 0; k< NUM_ADC_PORT; k++){
+			// show only used port
+			if (j*NUM_ADC_PORT + k >= NUM_OF_SENSOR)
+				break;
+			printf("%4lu\t", SensorVal[i][j][k]);
+		}
+	}
+}
+
 
 /*************************************************************/
 /**               FUNCTION FOR XSENS IMU                    **/
@@ -706,12 +754,13 @@ void init_sensor(void) {
 
 /***************************************************************/
 // Desc   : logging for saving data (sensor data) to txt file
-// Input  : mode [0] start logging. create and open file
-//               [1] input data
-//               [2] close file
+// Input  : mode [1] start logging. create and open file
+//               [2] input data
+//               [3] close file
 // Output :
 /***************************************************************/
-int logging (int mode, const char *message, int  index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], XsCalibratedData *calData){
+int logging (int mode, const char *message, int  index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT],
+	 						double *SetPoint_Angle, XsCalibratedData *calData){
 //int logging(int mode, const char *message){
   static FILE *fp;
   char str[256];
@@ -719,7 +768,7 @@ int logging (int mode, const char *message, int  index, unsigned long SensorVal[
   int i,j,k;
   // int SampleNum; //local SampleNum
 
-  if (mode==0) {
+  if (mode==1) {
     /* Creating Log File with format YYYYMMDD_HHMM.csv in /log directory */
     time_t now = time(NULL);
     struct tm *pnow = localtime (&now);
@@ -746,64 +795,135 @@ int logging (int mode, const char *message, int  index, unsigned long SensorVal[
   }
 
 
-  else if (mode==1){
-    sprintf(str, "%d",index);//TimeData[i]);
+  else if (mode==2){
+		// Column #0 : index
+    sprintf(str, "%d",index); //TimeData[i]);
     fputs(str, fp);
+
+		// Potentiometer Value, Column #1~#10
     for (j = 0; j< NUM_ADC; j++){
       for (k = 0; k< NUM_ADC_PORT; k++){
+				// show only used port
+				if (j*NUM_ADC_PORT + k >= NUM_OF_SENSOR)
+					break;
 				//sprintf(str, "%10lu\t", SensorVal[index][j][k]);
 				sprintf(str, ",%d", SensorVal[index][j][k]);
 				fputs(str, fp);
       }
     }
 
-		// converting float to string
+		// Angle Set Point Value, Column #11~#20
+		for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+			// converting float to string
+			std::string strs = ","+ std::to_string(SetPoint_Angle[j]);
+			fputs(strs.c_str(), fp);
+		}
+
+		/*
+		// Accelerometer Value, Column #21~#23
 		for (j=0;j<3;j++){
 			std::string strs = ","+ std::to_string(calData[index].m_acc.value(j));
-			//sprintf(str, "%d\t", calData.m_acc.value(j));
 			fputs(strs.c_str(), fp);
 		}
+		// Gyroscope Value, Column #24~#26
 		for (j=0;j<3;j++){
 			std::string strs = ","+ std::to_string(calData[index].m_gyr.value(j));
-			//sprintf(str, "%d\t", calData.m_gyr.value(j));
 			fputs(strs.c_str(), fp);
 		}
+		*/
+		// Time Data in milliseconds, last Column
+		std::string strs = ","+ std::to_string(TimeData[index]);
+		fputs(strs.c_str(), fp);
+
     sprintf(str, "\n");
     fputs(str, fp);
   }
 
 
-  else if(mode==2){
+  else if(mode==3){
     printf("End logging\n");
     fclose(fp);
   }
 }
 
 /* start and only open file for log */
-void startlog(const char* message){
+int startlog(const char* message){
+	int mode = 1;
 	XsCalibratedData *dummy;
-  logging(0,message,NULL,NULL,dummy);
+  logging(mode,message,NULL,NULL,NULL,dummy);
+	return mode;
 }
 
 /* input log on specific index */
-void entrylog(int  index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], XsCalibratedData *calData){
-  logging(1,"",index,SensorVal,calData);
+int entrylog(int  index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], double *SetPoint_Angle,
+							XsCalibratedData *calData){
+	int mode = 2;
+	logging(mode,"",index,SensorVal,SetPoint_Angle,calData);
+	return mode;
 }
 
 /* close file */
-void endlog() {
+int endlog() {
+	int mode = 3;
 	XsCalibratedData *dummy;
-  logging(2,"",NULL,NULL,dummy);
+  logging(mode,"",NULL,NULL,NULL,dummy);
+	return mode;
 }
 
 /* */
-void fulllog(const char* message, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], XsCalibratedData *calData){
+void fulllog(const char* message, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT],
+						 double *SetPoint_Angle, XsCalibratedData *calData){
   int i;
   startlog(message);
   for (i=0;i<SampleNum;i++){
-    entrylog (i,SensorVal,calData);
+    entrylog (i,SensorVal,SetPoint_Angle,calData);
   }
   endlog();
+}
+
+/***************************************************************/
+// Desc   : Saving PID Tuning data to file
+// Input  :
+// Output :
+/***************************************************************/
+void saveTunings(double Kp, double Ki, double Kd){
+	std::string line;
+	std::ofstream fp;			// ofstream, stream class to read
+
+	fp.open("src/PIDTuningData.txt");
+	if (fp.is_open()){
+		fp << Kp << "\n";
+		fp << Ki << "\n";
+		fp << Kd << "\n";
+	}
+	else
+		std::cout << "File Open Error\n";
+
+}
+
+/***************************************************************/
+// Desc   : Loading PID Tuning data from file
+// Input  :
+// Output :
+/***************************************************************/
+void loadTunings(double *Kp, double *Ki, double *Kd){
+	double temp[3];
+	int i=0;
+	std::string line;
+	std::ifstream fp;			// fstream, stream class to read/write
+
+	fp.open("src/PIDTuningData.txt");
+	if (fp.is_open()){
+		while (getline(fp,line)){
+			temp[i] = std::stod(line);   // string to double
+			i++;
+		}
+	}
+	else
+		std::cout << "No File. Please check for PID Tuning file\n";
+	*Kp = temp[0];
+	*Ki = temp[1];
+	*Kd = temp[2];
 }
 
 /*************************************************************/
@@ -815,7 +935,7 @@ void Reset_Valve (){
 	for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
 		if (i%16 < (NUM_OF_MUSCLE/2)){
 			setState(i,0.0);
-			printf("Valve #%d off\n",i);
+			//printf("Valve #%d off\n",i);
 		}
 	}
 }
@@ -852,49 +972,90 @@ void test_sensor (int SampleNum){
 /*======  Test one Muscle with Specific Pressure =======*/
 void test_valve (){
 
-  int valve_num;
+  int valve_count, valve_num[NUM_OF_MUSCLE];
   static int i=0;
-  double val,sensorval;
+	int j;
+  double val [NUM_OF_MUSCLE],sensorval;
   static unsigned long Value[MAX_SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
-
-  val=0;
-
-  printf ("Testing muscle with %1lf pressure coef\n", val);
+	double Angle[NUM_OF_POT_SENSOR];
 
   while(1){
-    printf("Input valve number: ");
-    scanf ("%d",&valve_num);
-    printf ("Testing muscle number %d\n", valve_num);
-    printf("Input pressure coef : ");
-    scanf ("%lf",&val);
-    //printf ("%lf\n",val);
-    if ((val>=0)&&(val<=1)){
-      setState(valve_num,val);
-      usleep(500000);
+    printf("Num of valve to test: ");
+    scanf ("%d",&valve_count);
+		if (valve_count >0){
+			for (j=0;j<valve_count;j++){
+				printf("Input valve number: ");   scanf ("%d",&valve_num[j]);
+		    printf("Input pressure coef : "); scanf ("%lf",&val[j]);
+			}
 
-      //read_sensor_all(i,Value);
-      //sensorval = ADCtoPressure (Value[i][0][1]);
-      //printf("%lf\n",sensorval);
-    }
-    printf("--------\n");
-    i++;
+			for (j=0;j<valve_count;j++){
+		    if ((val[j]>=0)&&(val[j]<=1)){
+					printf("Valve %d, %.3lf\t", valve_num[j], val[j]);
+		      setState(valve_num[j],val[j]);
+		    }
+			}
+			printf("\n");
+
+			while(!_kbhit()){
+	      read_sensor_all(i,Value,Angle);
+				for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+					printf("%.1f\t", Angle[j]);
+				}
+				printSensorVal(i,Value);
+				printf("\n");
+				i++;
+			}
+		}
+		else
+			break;
   }
 }
 
 // Bang-Bang Controller Test
-void BangBang (double SetPoint, double RefPoint, int UpMuscleChannel, int DownMuscleChannel){
-	if (RefPoint < SetPoint){
-		setState(UpMuscleChannel,0.3);
-		setState(DownMuscleChannel,0);
+int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *DownMuscleVal){
+
+	double error = 1; // error compensation
+	static double dP =0;
+	int temp;
+	static double lastCh1, lastCh2;
+
+	if ((lastCh1!= *UpMuscleVal)&&(lastCh2!= *DownMuscleVal)){
+		lastCh1 = *UpMuscleVal;
+		lastCh2 = *DownMuscleVal;
+		dP=0;
 	}
-	else if (RefPoint > SetPoint){
-		setState(UpMuscleChannel,0);
-		setState(DownMuscleChannel,0.3);
+
+	if (RefPoint < SetPoint - error){
+		//printf("Below SetPoint");
+		if (PRES_DEF+dP < MAX_PRESSURE)
+			dP+=0.01;
+
+		// flag for stability
+		temp=-1;
+	}
+	else if (RefPoint > SetPoint + error){
+		//printf("Above SetPoint");
+		if (PRES_DEF-dP > MIN_PRESSURE)
+			dP-=0.01;
+
+		// flag for stability
+		temp=-1;
 	}
 	else{
-		setState(UpMuscleChannel,0);
-		setState(DownMuscleChannel,0);
+		//printf("Reach SetPoint");
+		temp=1;
 	}
+
+	/*
+	setState(UpMuscleChannel,PRES_DEF+dP);
+	setState(DownMuscleChannel,PRES_DEF-dP);
+	usleep(50000);
+	*/
+	if ((*UpMuscleVal+dP < MAX_PRESSURE)&&(*UpMuscleVal+dP > MIN_PRESSURE))
+		*UpMuscleVal += dP;
+	if ((*DownMuscleVal+dP < MAX_PRESSURE)&&(*DownMuscleVal+dP > MIN_PRESSURE))
+		*DownMuscleVal -= dP;
+	return temp;
 }
 
 
@@ -915,29 +1076,43 @@ int main(int argc, char *argv[]) {
 	XsOutputMode outputMode = XOM_Calibrated;
 	XsOutputSettings outputSettings = XOS_CalibratedMode_All;
 
-	int i,j,k;
+	unsigned long i,j,k;
 	unsigned int ch_num;
 
 
 	/* Variable for ADC Board Data */
 	unsigned long SensorData[SampleNum][NUM_ADC][NUM_ADC_PORT];
-	unsigned long ***SensorArray;
 
 	double JointAngle[NUM_OF_POT_SENSOR];
-	double SetPoint_Angle[NUM_OF_POT_SENSOR];
+	double SetPoint_Angle[NUM_OF_POT_SENSOR] ={0};
+
+	// muscle pressure val init
+	double muscle_pair_val [NUM_OF_POT_SENSOR][2];
+	for (j=0;j<NUM_OF_POT_SENSOR;j++){
+		for (k=0;k<2;k++)
+			muscle_pair_val [j][k] = PRES_DEF;
+	}
+
+	/* PID library */
+	double SetPoint, Input, Output;
+	double Kp=0,Ki=0,Kd=0;
+	PID myPID(&Input, &Output, &SetPoint, Kp, Ki, Kd, DIRECT);
+  myPID.SetMode(AUTOMATIC);
+
 
 	clock_t TimeData[SampleNum];
 	clock_t laps1,laps2;
 	//int ValveNum = 1;
 
-
 	// Valve initialization
 	Reset_Valve();
+	usleep(1000);
 
+	char in,msg[20];
 
 	if (argc==2){
 	  switch (*argv[1]){
-	  case '1':
+	  case '1': {
 	    printf("Testing Sensor\n");
 		  printf("Sample \tPot1 \tPot2 \tPot3 \tPot4 \tPot5 \tPot6 \tPot7 \tPot8 \tPot9 \tPot10 \n");
 	    /* this is for using function */
@@ -949,8 +1124,8 @@ int main(int argc, char *argv[]) {
 			laps1 = clock();
 
 
-			setState(IL_L,0.2);
-			setState(GMAX_L,0.5);
+			//setState(IL_L,0.2);
+			//setState(GMAX_L,0.5);
 
 	    for (i=0;i<SampleNum;i++){
 	      read_sensor_all(i,SensorData,JointAngle);
@@ -968,6 +1143,7 @@ int main(int argc, char *argv[]) {
 				printf("\r");
 				printf("[%d]\t",i);
 
+				/*
 	      for (j = 0; j< NUM_ADC; j++){
 					for (k = 0; k< NUM_ADC_PORT; k++){
 						// show only used port
@@ -976,6 +1152,7 @@ int main(int argc, char *argv[]) {
 					  printf("%4lu\t", SensorData[i][j][k]);
 					}
 	      }
+				*/
 
 				for (j = 0; j<NUM_OF_POT_SENSOR;j++){
 					printf("%.1f\t", JointAngle[j]);
@@ -1001,28 +1178,30 @@ int main(int argc, char *argv[]) {
 	    }
 			printf ("\n");
 	    printf ("-------------------\n");
-	    // fulllog("adc_acc_gyr",SensorData,IMUData.calData);
+	    // fulllog("adc_acc_gyr",SensorData,SetPoint_Angle,IMUData.calData);
 	    /**/
 			// Saving test data
 			printf ("Save data (y/n)? ");
-			char in,msg[20];
 	    scanf ("%c",&in);
 			if (in=='y'){
 				printf ("filename message: ");
 		    scanf ("%s",&msg);
-				fulllog(msg,SensorData,IMUData.calData);
+				fulllog(msg,SensorData,SetPoint_Angle,IMUData.calData);
 			}
 			printf("%c, %s\n",in, msg);
 			/**/
 	    break;
+		}
 		case '2':
 			test_IMU();
 			break;
-	  case '3':
+	  case '3':{
 	    printf("Testing Valve\n");
 	    test_valve();
+			Reset_Valve();
 	    break;
-	  case '4':
+		}
+	  case '4':{
 	    printf("Testing Preset Pressure\n");
 
 			double muscle_val[32]= {0};
@@ -1030,6 +1209,7 @@ int main(int argc, char *argv[]) {
 
 			double muscle_zero_deg_value [32] = { 0 };
 
+			/*
 			muscle_val[IL_R] = 0.1;
 			muscle_val[IL_L] = 0.1;
 			muscle_val[GMAX_R] = 0.6;
@@ -1044,6 +1224,7 @@ int main(int argc, char *argv[]) {
 			//muscle_val[SOL_L] = 0.31;
 			muscle_val[ADD_R] = 0.3;
 			muscle_val[ADD_L] = 0.3;
+			*/
 
 			for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
 				if (i%16 < (NUM_OF_MUSCLE/2)){
@@ -1072,6 +1253,176 @@ int main(int argc, char *argv[]) {
 			Reset_Valve();
 			printf ("Done\n");
 	    break;
+		}
+		case '5':{
+			int joint, lastjoint=0;
+			int logflag=0;
+			printf("Testing Bang-bang\n");
+
+			while(1){
+				std::cout<< "Joint No. : "; std::cin >> joint;
+				if (lastjoint!=joint){
+					lastjoint = joint;
+					i=0;
+					StartTimePoint = std::chrono::system_clock::now();
+
+					// ending log if joint changed, not done if it hasn't been logged
+					if (logflag==2)
+						logflag = endlog();
+
+					if (joint!=0){
+						std::cout<< "Saved File (y/n)? : "; std::cin >> in;
+						if (in=='y'){
+							std::cout<< "Message : "; std::cin >> msg;
+							logflag = startlog(msg);
+						}
+						else
+							std::cout << "Not saving file\n";
+					}
+				}
+
+				if (joint>0){
+					printf("Setting Joint #%d . Muscle %d\t%d\n", joint, muscle_pair[joint-1][0],muscle_pair[joint-1][1]);
+					std::cout<< "SetPoint : "; std::cin >> SetPoint_Angle[joint-1];
+					while(!_kbhit()){
+						EndTimePoint = std::chrono::system_clock::now();
+						TimeData[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+
+						read_sensor_all(i,SensorData,JointAngle);
+						printf("\r");
+						//printf("\r");
+						Input = JointAngle[joint-1];
+						printf("%.1f\t%.1f\t", SetPoint_Angle[joint-1], Input);
+						printf("Error: %.1f\t", SetPoint_Angle[joint-1] - Input);
+
+						BangBang(SetPoint_Angle[joint-1],Input,&muscle_pair_val[joint-1][0],&muscle_pair_val[joint-1][1]);
+						setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
+						setState(muscle_pair[joint-1][1],muscle_pair_val[joint-1][1]);
+						usleep(50000);
+
+						printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[joint-1][0], muscle_pair_val[joint-1][1]);
+						logflag = entrylog(i,SensorData,SetPoint_Angle,IMUData.calData);
+						i++;
+					}
+					printf("\n");
+				}
+				else
+					break;
+			}
+			Reset_Valve();
+			break;
+		}
+		case '6':{
+			printf ("BangBang Controller for all joints\n");
+			printf ("ADD ABD are set to default\n");
+			setState(ADD_R,PRES_DEF);
+			setState(ADD_L,PRES_DEF);
+
+
+			while(1){
+				int mode;
+				int flag[NUM_OF_POT_SENSOR] = {0};
+				printf("Set SetPoint for Angle\n");
+			  printf("0 : All ZERO\n");
+				printf("1 : Predefined 1\n");
+			  printf("99 : Exit\n");
+				std::cout<< "Mode : "; std::cin >> mode;
+				if (mode!=99){
+					i=0;
+					// mode for All ZERO
+					if (mode==0){
+						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+							SetPoint_Angle[j] = 0;
+						}
+					}
+					if (mode==1){
+						SetPoint_Angle[0] = 2;
+						SetPoint_Angle[1] = 2;
+						SetPoint_Angle[4] = -4;
+						SetPoint_Angle[5] = -4;
+						SetPoint_Angle[6] = 2;
+						SetPoint_Angle[7] = 2;
+					}
+					//loop
+					while(!_kbhit()){
+						printf("\r");
+						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+							//printf("%.1f\t", SetPoint_Angle[j]);
+							read_sensor_all(i,SensorData,JointAngle);
+							//printf("%.1f\t", JointAngle[j]);
+
+							if ((j==0)||(j==1)||(j==4)||(j==5)||(j==6)||(j==7)){
+							//if ((j==4)||(j==5)){
+								while(flag[j]<20){
+									read_sensor_all(i,SensorData,JointAngle);
+									flag[j] +=BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[j][0],&muscle_pair_val[j][1]);
+									setState(muscle_pair[j][0],muscle_pair_val[j][0]);
+									setState(muscle_pair[j][1],muscle_pair_val[j][1]);
+									usleep(50000);
+									if (flag[j]<0)
+										flag[j] = 0;
+								};
+							}
+						}
+						i++;
+						//reset flag
+						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+							printf("%.1f\t", JointAngle[j]);
+							flag[j] = 0;
+						}
+						usleep(1000);
+					}
+					printf("\n");
+				}
+				else
+					break;
+			}
+			Reset_Valve();
+			break;
+
+		}
+		case '7':{
+			printf("Testing PID\n");
+			std::cout<< "Kp :"; std::cin >> Kp;
+			std::cout<< "Ki :"; std::cin >> Ki;
+			std::cout<< "Kd :"; std::cin >> Kd;
+			std::cout<< "SetPoint : "; std::cin >> SetPoint;
+			myPID.SetTunings(Kp,Ki,Kd);
+
+			std::cout << Kp << "\t" << Ki << "\t" << Kd << "\t" << SetPoint << "\n";
+			//for (i=0;i<SampleNum;i++){
+			while(!_kbhit()){
+				read_sensor_all(i,SensorData,JointAngle);
+				printf("\n");
+				//printf("\r");
+				printf("%.1f\t", JointAngle[0]);
+
+				Input = JointAngle[0];
+				myPID.Compute();
+				std::cout << myPID.GetKp() << "\t" << myPID.GetKi() << "\t" << myPID.GetKd() << "\t";
+				printf("%.1f\t", Output);
+				setState(GMAX_R,PRES_DEF-Output);
+				setState(IL_R,PRES_DEF+Output);
+			}
+			std::cout<< "Done. Reset Now\n";
+			std::cout << "\n";
+			Reset_Valve();
+			break;
+		}
+		case '99':{
+			printf("Testing update Kp Ki Kd\n");
+			while (1){
+				std::cout<< "Kp :"; std::cin >> Kp;
+				std::cout<< "Ki :"; std::cin >> Ki;
+				std::cout<< "Kd :"; std::cin >> Kd;
+				saveTunings(Kp,Ki,Kd);
+				Kp=0;Ki=0;Kd=0;
+				std::cout << Kp << "\t" << Ki << "\t" << Kd << "\n";
+				loadTunings(&Kp,&Ki,&Kd);
+				std::cout << Kp << "\t" << Ki << "\t" << Kd << "\n";
+			}
+			break;
+		}
 	  }
 	}
 	else{
@@ -1080,7 +1431,10 @@ int main(int argc, char *argv[]) {
 		printf("2 : Testing IMU Sensor\n");
 	  printf("3 : Testing a desired Muscle/Valve with desired pressure\n");
 	  printf("4 : Testing all Muscle/Valves with preset pressure\n");
-	  printf("5 : \n");
+	  printf("5 : Testing Bang-bang\n");
+	  printf("6 : Bang-bang Controller\n");
+	  printf("7 : PID Tuning\n");
+	  printf("99 : Testing saving loading file\n");
 	}
 
 

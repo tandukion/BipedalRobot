@@ -1,12 +1,12 @@
 xsint64array.c.o: xsint64array.c \
- /home/dwindra/code/InvertedPendulum/include/xsens/xsint64array.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/xsarray.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/xstypesconfig.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/xstypedefs.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/pstdint.h
+ /home/dwindra/code/BipedalRobot/include/xsens/xsint64array.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/xsarray.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/xstypesconfig.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/xstypedefs.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/pstdint.h
 xsint64array.c:
-/home/dwindra/code/InvertedPendulum/include/xsens/xsint64array.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/xsarray.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/xstypesconfig.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/xstypedefs.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/pstdint.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xsint64array.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xsarray.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xstypesconfig.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xstypedefs.h:
+/home/dwindra/code/BipedalRobot/include/xsens/pstdint.h:

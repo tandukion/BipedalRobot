@@ -18,8 +18,9 @@ PID_ATune::PID_ATune(double* Input, double* Output)
 	running = false;
 	oStep = 30;
 	SetLookbackSec(10);
-	lastTime = millis();
+	//lastTime = millis();
 
+	lastNow = std::chrono::system_clock::now();
 }
 
 
@@ -38,10 +39,16 @@ int PID_ATune::Runtime()
 		FinishUp();
 		return 1;
 	}
-	unsigned long now = millis();
 
-	if((now-lastTime)<sampleTime) return false;
-	lastTime = now;
+	// unsigned long now = millis();
+	//if((now-lastTime)<sampleTime) return false;
+	//lastTime = now;
+
+	auto now = std::chrono::system_clock::now();
+	std::chrono::duration<double, std::milli> timeChange = now - lastNow;
+	if(timeChange < std::chrono::milliseconds(sampleTime)) return false;
+	lastNow = now;
+
 	double refVal = *input;
 	justevaled=true;
 	if(!running)
@@ -93,9 +100,11 @@ int PID_ATune::Runtime()
       justchanged=true;
       peak2 = peak1;
     }
-    peak1 = now;
-    peaks[peakCount] = refVal;
+    //peak1 = now;
 
+		peak1 = std::chrono::time_point_cast<std::chrono::milliseconds>(now).time_since_epoch().count();
+
+    peaks[peakCount] = refVal;
   }
   else if(isMin)
   {

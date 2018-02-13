@@ -1,16 +1,16 @@
 xssnapshot.c.o: xssnapshot.c \
- /home/dwindra/code/InvertedPendulum/include/xsens/xssnapshot.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/xstypesconfig.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/xstypedefs.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/pstdint.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/xsdeviceid.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/xsstring.h \
- /home/dwindra/code/InvertedPendulum/include/xsens/xsarray.h
+ /home/dwindra/code/BipedalRobot/include/xsens/xssnapshot.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/xstypesconfig.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/xstypedefs.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/pstdint.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/xsdeviceid.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/xsstring.h \
+ /home/dwindra/code/BipedalRobot/include/xsens/xsarray.h
 xssnapshot.c:
-/home/dwindra/code/InvertedPendulum/include/xsens/xssnapshot.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/xstypesconfig.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/xstypedefs.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/pstdint.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/xsdeviceid.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/xsstring.h:
-/home/dwindra/code/InvertedPendulum/include/xsens/xsarray.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xssnapshot.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xstypesconfig.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xstypedefs.h:
+/home/dwindra/code/BipedalRobot/include/xsens/pstdint.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xsdeviceid.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xsstring.h:
+/home/dwindra/code/BipedalRobot/include/xsens/xsarray.h:

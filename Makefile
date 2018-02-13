@@ -35,12 +35,13 @@ $(TARGET): $(OBJECTS)
 # working
 	$(CXX) $(CFLAGS) $(INCLUDE) $^ src/gpio.c -o $@ $(LFLAGS)
 
+
 clean :
 	$(RM) $(OBJECTS) $(TARGET)
 
 clean_all:
 	-$(RM) $(OBJECTS) $(TARGET)
-	-$(MAKE) -C src $(MFLAGS) clean
+	-$(MAKE) -C src $(MFLAGS) fclean
 	-$(MAKE) -C xcommunication $(MFLAGS) clean
 	-$(MAKE) -C xstypes $(MFLAGS) clean
 	- rm -rf lib/libxstypes.a lib/libxcommunication.a

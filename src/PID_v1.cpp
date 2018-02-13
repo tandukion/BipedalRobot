@@ -10,9 +10,9 @@
 #else
   #include "WProgram.h"
 #endif
+*/
 
 #include <PID_v1.h>
-*/
 
 /*Constructor (...)*********************************************************
  *    The parameters specified here are those for for which we can't set up
@@ -26,15 +26,17 @@ PID::PID(double* Input, double* Output, double* Setpoint,
     mySetpoint = Setpoint;
     inAuto = false;
 
-    PID::SetOutputLimits(0, 255);				//default output limit corresponds to
+    //PID::SetOutputLimits(0, 255);				//default output limit corresponds to
 												//the arduino pwm limits
+    PID::SetOutputLimits(-1, 1);
 
     SampleTime = 100;							//default Controller Sample Time is 0.1 seconds
 
     PID::SetControllerDirection(ControllerDirection);
     PID::SetTunings(Kp, Ki, Kd, POn);
 
-    lastTime = millis()-SampleTime;
+    //lastTime = millis()-SampleTime;
+    lastNow = std::chrono::system_clock::now();
 }
 
 /*Constructor (...)*********************************************************
@@ -59,9 +61,14 @@ PID::PID(double* Input, double* Output, double* Setpoint,
 bool PID::Compute()
 {
    if(!inAuto) return false;
-   unsigned long now = millis();
-   unsigned long timeChange = (now - lastTime);
-   if(timeChange>=SampleTime)
+   //unsigned long now = millis();
+   //unsigned long timeChange = (now - lastTime);
+
+   auto now = std::chrono::system_clock::now();
+   std::chrono::duration<double, std::milli> timeChange = now - lastNow;
+
+   //if(timeChange>= SampleTime)
+   if(timeChange>= std::chrono::milliseconds(SampleTime))
    {
       /*Compute all the working error variables*/
       double input = *myInput;
@@ -89,7 +96,8 @@ bool PID::Compute()
 
       /*Remember some variables for next time*/
       lastInput = input;
-      lastTime = now;
+      //lastTime = now;
+      lastNow = now;
 	    return true;
    }
    else return false;
