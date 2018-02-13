@@ -152,7 +152,7 @@ unsigned long SensorValue[NUM_ADC][NUM_ADC_PORT];
 
 /* for sampling time */
 std::chrono::system_clock::time_point StartTimePoint, EndTimePoint;
-double TimeData[MAX_SAMPLE_NUM];
+double TimeStamp[MAX_SAMPLE_NUM];
 
 /* Table for muscle valve number and sensor number */
 int muscle_sensor [NUM_OF_MUSCLE] = {PIN_PRES_1,PIN_PRES_2};
@@ -797,7 +797,7 @@ int logging (int mode, const char *message, int  index, unsigned long SensorVal[
 
   else if (mode==2){
 		// Column #0 : index
-    sprintf(str, "%d",index); //TimeData[i]);
+    sprintf(str, "%d",index);
     fputs(str, fp);
 
 		// Potentiometer Value, Column #1~#10
@@ -832,7 +832,7 @@ int logging (int mode, const char *message, int  index, unsigned long SensorVal[
 		}
 		*/
 		// Time Data in milliseconds, last Column
-		std::string strs = ","+ std::to_string(TimeData[index]);
+		std::string strs = ","+ std::to_string(TimeStamp[index]);
 		fputs(strs.c_str(), fp);
 
     sprintf(str, "\n");
@@ -1100,7 +1100,7 @@ int main(int argc, char *argv[]) {
   myPID.SetMode(AUTOMATIC);
 
 
-	clock_t TimeData[SampleNum];
+	//clock_t TimeData[SampleNum];
 	clock_t laps1,laps2;
 	//int ValveNum = 1;
 
@@ -1257,6 +1257,7 @@ int main(int argc, char *argv[]) {
 		case '5':{
 			int joint, lastjoint=0;
 			int logflag=0;
+			double a;
 			printf("Testing Bang-bang\n");
 
 			while(1){
@@ -1286,7 +1287,7 @@ int main(int argc, char *argv[]) {
 					std::cout<< "SetPoint : "; std::cin >> SetPoint_Angle[joint-1];
 					while(!_kbhit()){
 						EndTimePoint = std::chrono::system_clock::now();
-						TimeData[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+						TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 
 						read_sensor_all(i,SensorData,JointAngle);
 						printf("\r");
@@ -1294,6 +1295,7 @@ int main(int argc, char *argv[]) {
 						Input = JointAngle[joint-1];
 						printf("%.1f\t%.1f\t", SetPoint_Angle[joint-1], Input);
 						printf("Error: %.1f\t", SetPoint_Angle[joint-1] - Input);
+						printf("time: %.1f\t", TimeStamp[i]);
 
 						BangBang(SetPoint_Angle[joint-1],Input,&muscle_pair_val[joint-1][0],&muscle_pair_val[joint-1][1]);
 						setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
@@ -1301,7 +1303,10 @@ int main(int argc, char *argv[]) {
 						usleep(50000);
 
 						printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[joint-1][0], muscle_pair_val[joint-1][1]);
-						logflag = entrylog(i,SensorData,SetPoint_Angle,IMUData.calData);
+
+						// if logging
+						if ((logflag==1)||(logflag==2))
+							logflag = entrylog(i,SensorData,SetPoint_Angle,IMUData.calData);
 						i++;
 					}
 					printf("\n");
