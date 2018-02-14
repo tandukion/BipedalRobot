@@ -1337,10 +1337,11 @@ int main(int argc, char *argv[]) {
 			setState(ADD_R,PRES_DEF);
 			setState(ADD_L,PRES_DEF);
 
+			int mode,lastmode;
+			int flag[NUM_OF_POT_SENSOR] = {0};
+
 
 			while(1){
-				int mode,lastmode;
-				int flag[NUM_OF_POT_SENSOR] = {0};
 				printf("Set SetPoint for Angle\n");
 			  printf("0 : All ZERO\n");
 				printf("1 : Predefined 1\n");
@@ -1351,13 +1352,14 @@ int main(int argc, char *argv[]) {
 
 					// for logging
 					std::cout<< "Saved File (y/n)? : "; std::cin >> in;
+					/*
 					if (in=='y'){
 						std::cout<< "Message : "; std::cin >> msg;
 						logflag = startlog(msg);
 					}
 					else
 						std::cout << "Not saving file\n";
-
+					*/
 
 					StartTimePoint = std::chrono::system_clock::now();
 					i=0;
@@ -1369,12 +1371,12 @@ int main(int argc, char *argv[]) {
 						}
 					}
 					else if (mode==1){
-						SetPoint_Angle[0] = 2;
-						SetPoint_Angle[1] = 2;
-						SetPoint_Angle[4] = -4;
-						SetPoint_Angle[5] = -4;
-						SetPoint_Angle[6] = 2;
-						SetPoint_Angle[7] = 2;
+						SetPoint_Angle[0] = 5;
+						SetPoint_Angle[1] = 5;
+						SetPoint_Angle[4] = -10;
+						SetPoint_Angle[5] = -10;
+						SetPoint_Angle[6] = 5;
+						SetPoint_Angle[7] = 5;
 					}
 					else if (mode==2){
 						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
@@ -1382,9 +1384,11 @@ int main(int argc, char *argv[]) {
 							std::cin >> SetPoint_Angle[j];
 						}
 					}
+
 					//loop
 					while(!_kbhit()){
 						//printf("\r");
+
 						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
 							//printf("%.1f\t", SetPoint_Angle[j]);
 							//read_sensor_all(i,SensorData,JointAngle);
@@ -1400,8 +1404,8 @@ int main(int argc, char *argv[]) {
 									TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 
 									// if logging
-									if ((logflag==1)||(logflag==2))
-										logflag = entrylog(i,SensorData,SetPoint_Angle,IMUData.calData);
+									//if ((logflag==1)||(logflag==2))
+										//logflag = entrylog(i,SensorData,SetPoint_Angle,IMUData.calData);
 									i++;
 
 									printf("\rJoint %d: ", j+1);
@@ -1411,6 +1415,9 @@ int main(int argc, char *argv[]) {
 									setState(muscle_pair[j][0],muscle_pair_val[j][0]);
 									setState(muscle_pair[j][1],muscle_pair_val[j][1]);
 									usleep(50000);
+
+									printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[j][0], muscle_pair_val[j][1]);
+
 									if (flag[j]<0)
 										flag[j] = 0;
 								}
@@ -1428,8 +1435,9 @@ int main(int argc, char *argv[]) {
 							}
 							printf("\n");
 						}
+
+
 						printf("\n");
-						i++;
 						//reset flag
 						//for (j = 0; j<NUM_OF_POT_SENSOR;j++){
 							//printf("%.1f\t", JointAngle[j]);
@@ -1438,7 +1446,18 @@ int main(int argc, char *argv[]) {
 						usleep(1000);
 					}
 
-					logflag = endlog();
+					// if logging
+					//if ((logflag==1)||(logflag==2))
+						//logflag = endlog();
+
+					// full log version to minimize time
+					if (in=='y'){
+						std::cout<< "Message : "; std::cin >> msg;
+						fulllog(msg,SensorData,SetPoint_Angle,IMUData.calData);
+					}
+					else
+						std::cout << "Not saving file\n";
+
 					printf("\n");
 				}
 				else
