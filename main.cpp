@@ -1387,16 +1387,11 @@ int main(int argc, char *argv[]) {
 
 					//loop
 					while(!_kbhit()){
-						//printf("\r");
-
+						// ====== One by One check. ========
+						// ====> stuck one 1 joints if not reached
+						/*
 						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-							//printf("%.1f\t", SetPoint_Angle[j]);
-							//read_sensor_all(i,SensorData,JointAngle);
-							//printf("%.1f\t", JointAngle[j]);
-
-
 							if ((j==0)||(j==1)||(j==4)||(j==5)||(j==6)||(j==7)){
-							//if ((j==0)||(j==1)){
 								while(flag[j]<10){
 									read_sensor_all(i,SensorData,JointAngle);
 
@@ -1408,8 +1403,8 @@ int main(int argc, char *argv[]) {
 										//logflag = entrylog(i,SensorData,SetPoint_Angle,IMUData.calData);
 									i++;
 
-									printf("\rJoint %d: ", j+1);
-									printf("%.1f\t", JointAngle[j]);
+									printf("\rJoint %d. ", j+1);
+									printf("Act: %.1f\t SetPoint: %.1f\t ", JointAngle[j], SetPoint_Angle[j]);
 
 									flag[j] +=BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[j][0],&muscle_pair_val[j][1]);
 									setState(muscle_pair[j][0],muscle_pair_val[j][0]);
@@ -1435,14 +1430,29 @@ int main(int argc, char *argv[]) {
 							}
 							printf("\n");
 						}
-
-
 						printf("\n");
-						//reset flag
-						//for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-							//printf("%.1f\t", JointAngle[j]);
-							//flag[j] = 0;
-						//}
+						*/
+
+						// ======= only once corrected ========
+						printf("\r");
+						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+							read_sensor_all(i,SensorData,JointAngle);
+							EndTimePoint = std::chrono::system_clock::now();
+							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+
+							printf("Joint %2d. ", j+1);
+							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+
+							BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[j][0],&muscle_pair_val[j][1]);
+							setState(muscle_pair[j][0],muscle_pair_val[j][0]);
+							setState(muscle_pair[j][1],muscle_pair_val[j][1]);
+							usleep(50000);
+
+							printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[j][0], muscle_pair_val[j][1]);
+							printf("\n");
+						}
+						printf("\n");
+
 						usleep(1000);
 					}
 
