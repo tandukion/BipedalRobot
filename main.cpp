@@ -1027,7 +1027,8 @@ int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *Dow
 
 	if (RefPoint < SetPoint - error){
 		//printf("Below SetPoint");
-		if (PRES_DEF+dP < MAX_PRESSURE)
+		//if (PRES_DEF+dP < MAX_PRESSURE)
+		if (dP < MAX_PRESSURE)
 			dP+=0.01;
 
 		// flag for stability
@@ -1035,7 +1036,8 @@ int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *Dow
 	}
 	else if (RefPoint > SetPoint + error){
 		//printf("Above SetPoint");
-		if (PRES_DEF-dP > MIN_PRESSURE)
+		//if (PRES_DEF-dP > MIN_PRESSURE)
+		if (abs(dP) < MAX_PRESSURE)
 			dP-=0.01;
 
 		// flag for stability
@@ -1051,10 +1053,23 @@ int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *Dow
 	setState(DownMuscleChannel,PRES_DEF-dP);
 	usleep(50000);
 	*/
+
+	//printf("dP: %.1f\t", dP);
+
+	// Output Saturation
 	if ((*UpMuscleVal+dP < MAX_PRESSURE)&&(*UpMuscleVal+dP > MIN_PRESSURE))
 		*UpMuscleVal += dP;
-	if ((*DownMuscleVal+dP < MAX_PRESSURE)&&(*DownMuscleVal+dP > MIN_PRESSURE))
+	//if (*UpMuscleVal > MAX_PRESSURE)
+		//*UpMuscleVal = MAX_PRESSURE;
+	//else if (*UpMuscleVal < MIN_PRESSURE)
+		//*UpMuscleVal = MIN_PRESSURE;
+
+	if ((*DownMuscleVal-dP < MAX_PRESSURE)&&(*DownMuscleVal-dP > MIN_PRESSURE))
 		*DownMuscleVal -= dP;
+	//if (*DownMuscleVal > MAX_PRESSURE)
+		//*DownMuscleVal = MAX_PRESSURE;
+	//else if (*DownMuscleVal < MIN_PRESSURE)
+		//*DownMuscleVal = MIN_PRESSURE;
 	return temp;
 }
 
@@ -1109,6 +1124,7 @@ int main(int argc, char *argv[]) {
 	usleep(1000);
 
 	char in,msg[20];
+	int logflag=0;
 
 	if (argc==2){
 	  switch (*argv[1]){
@@ -1256,8 +1272,6 @@ int main(int argc, char *argv[]) {
 		}
 		case '5':{
 			int joint, lastjoint=0;
-			int logflag=0;
-			double a;
 			printf("Testing Bang-bang\n");
 
 			while(1){
@@ -1325,22 +1339,36 @@ int main(int argc, char *argv[]) {
 
 
 			while(1){
-				int mode;
+				int mode,lastmode;
 				int flag[NUM_OF_POT_SENSOR] = {0};
 				printf("Set SetPoint for Angle\n");
 			  printf("0 : All ZERO\n");
 				printf("1 : Predefined 1\n");
+				printf("2 : Manually set\n");
 			  printf("99 : Exit\n");
 				std::cout<< "Mode : "; std::cin >> mode;
 				if (mode!=99){
+
+					// for logging
+					std::cout<< "Saved File (y/n)? : "; std::cin >> in;
+					if (in=='y'){
+						std::cout<< "Message : "; std::cin >> msg;
+						logflag = startlog(msg);
+					}
+					else
+						std::cout << "Not saving file\n";
+
+
+					StartTimePoint = std::chrono::system_clock::now();
 					i=0;
+
 					// mode for All ZERO
 					if (mode==0){
 						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
 							SetPoint_Angle[j] = 0;
 						}
 					}
-					if (mode==1){
+					else if (mode==1){
 						SetPoint_Angle[0] = 2;
 						SetPoint_Angle[1] = 2;
 						SetPoint_Angle[4] = -4;
@@ -1348,35 +1376,69 @@ int main(int argc, char *argv[]) {
 						SetPoint_Angle[6] = 2;
 						SetPoint_Angle[7] = 2;
 					}
+					else if (mode==2){
+						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+							std::cout<< "Joint #" << j+1 << " : ";
+							std::cin >> SetPoint_Angle[j];
+						}
+					}
 					//loop
 					while(!_kbhit()){
-						printf("\r");
+						//printf("\r");
 						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
 							//printf("%.1f\t", SetPoint_Angle[j]);
-							read_sensor_all(i,SensorData,JointAngle);
+							//read_sensor_all(i,SensorData,JointAngle);
 							//printf("%.1f\t", JointAngle[j]);
 
+
 							if ((j==0)||(j==1)||(j==4)||(j==5)||(j==6)||(j==7)){
-							//if ((j==4)||(j==5)){
-								while(flag[j]<20){
+							//if ((j==0)||(j==1)){
+								while(flag[j]<10){
 									read_sensor_all(i,SensorData,JointAngle);
+
+									EndTimePoint = std::chrono::system_clock::now();
+									TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+
+									// if logging
+									if ((logflag==1)||(logflag==2))
+										logflag = entrylog(i,SensorData,SetPoint_Angle,IMUData.calData);
+									i++;
+
+									printf("\rJoint %d: ", j+1);
+									printf("%.1f\t", JointAngle[j]);
+
 									flag[j] +=BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[j][0],&muscle_pair_val[j][1]);
 									setState(muscle_pair[j][0],muscle_pair_val[j][0]);
 									setState(muscle_pair[j][1],muscle_pair_val[j][1]);
 									usleep(50000);
 									if (flag[j]<0)
 										flag[j] = 0;
-								};
+								}
+								//reset flag
+								flag[j] = 0;
 							}
+							else{
+								read_sensor_all(i,SensorData,JointAngle);
+								EndTimePoint = std::chrono::system_clock::now();
+								TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+								i++;
+
+								printf("\rJoint %d: ", j+1);
+								printf("%.1f\t", JointAngle[j]);
+							}
+							printf("\n");
 						}
+						printf("\n");
 						i++;
 						//reset flag
-						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-							printf("%.1f\t", JointAngle[j]);
-							flag[j] = 0;
-						}
+						//for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+							//printf("%.1f\t", JointAngle[j]);
+							//flag[j] = 0;
+						//}
 						usleep(1000);
 					}
+
+					logflag = endlog();
 					printf("\n");
 				}
 				else
