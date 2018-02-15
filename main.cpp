@@ -1439,6 +1439,7 @@ int main(int argc, char *argv[]) {
 							read_sensor_all(i,SensorData,JointAngle);
 							EndTimePoint = std::chrono::system_clock::now();
 							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+							i++;
 
 							printf("Joint %2d. ", j+1);
 							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
