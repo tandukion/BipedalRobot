@@ -1114,10 +1114,16 @@ int main(int argc, char *argv[]) {
 	PID myPID(&Input, &Output, &SetPoint, Kp, Ki, Kd, DIRECT);
   myPID.SetMode(AUTOMATIC);
 
+	PID_ATune PIDTune(&Input,&Output);
+	PIDTune.SetControlType(1); // mode 0 = PI, 1 = PID
+	PIDTune.SetOutputStep(0.01);
+	PIDTune.SetNoiseBand(0.5);
+	PIDTune.SetLookbackSec(5);
 
-	//clock_t TimeData[SampleNum];
+	int tuneflag=0;
+
 	clock_t laps1,laps2;
-	//int ValveNum = 1;
+	int joint, lastjoint=0;
 
 	// Valve initialization
 	Reset_Valve();
@@ -1188,7 +1194,6 @@ int main(int argc, char *argv[]) {
 				else{
 					delta_t = 0;
 				}
-				printf("%.5f\t",elapsed);
 				//printf("\n");
 	     */
 	    }
@@ -1271,7 +1276,6 @@ int main(int argc, char *argv[]) {
 	    break;
 		}
 		case '5':{
-			int joint, lastjoint=0;
 			printf("Testing Bang-bang\n");
 
 			while(1){
@@ -1352,14 +1356,6 @@ int main(int argc, char *argv[]) {
 
 					// for logging
 					std::cout<< "Saved File (y/n)? : "; std::cin >> in;
-					/*
-					if (in=='y'){
-						std::cout<< "Message : "; std::cin >> msg;
-						logflag = startlog(msg);
-					}
-					else
-						std::cout << "Not saving file\n";
-					*/
 
 					StartTimePoint = std::chrono::system_clock::now();
 					i=0;
@@ -1488,21 +1484,102 @@ int main(int argc, char *argv[]) {
 
 			std::cout << Kp << "\t" << Ki << "\t" << Kd << "\t" << SetPoint << "\n";
 			//for (i=0;i<SampleNum;i++){
+			i=0;
+			joint = 1;
 			while(!_kbhit()){
 				read_sensor_all(i,SensorData,JointAngle);
-				printf("\n");
-				//printf("\r");
+				//printf("\n");
+				printf("\r");
 				printf("%.1f\t", JointAngle[0]);
 
 				Input = JointAngle[0];
 				myPID.Compute();
-				std::cout << myPID.GetKp() << "\t" << myPID.GetKi() << "\t" << myPID.GetKd() << "\t";
-				printf("%.1f\t", Output);
-				setState(GMAX_R,PRES_DEF-Output);
-				setState(IL_R,PRES_DEF+Output);
+				//std::cout << myPID.GetKp() << "\t" << myPID.GetKi() << "\t" << myPID.GetKd() << "\t";
+
+				muscle_pair_val[joint-1][0] += Output;
+				muscle_pair_val[joint-1][1] -= Output;
+				for (j=0;j<2;j++){
+					if (muscle_pair_val[joint-1][j] > MAX_PRESSURE)
+						muscle_pair_val[joint-1][j] = MAX_PRESSURE;
+					else if (muscle_pair_val[joint-1][j] < MIN_PRESSURE)
+						muscle_pair_val[joint-1][j] = MIN_PRESSURE;
+				}
+
+				setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
+				setState(muscle_pair[joint-1][1],muscle_pair_val[joint-1][1]);
+				usleep(50000);
+
+				printf("Out: %5.2f\t", Output);
+				printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[joint-1][0], muscle_pair_val[joint-1][1]);
 			}
-			std::cout<< "Done. Reset Now\n";
-			std::cout << "\n";
+			Reset_Valve();
+			break;
+		}
+
+		case '8':{
+			printf("PID Tuning\n");
+
+			while(1){
+				std::cout<< "Joint No. : "; std::cin >> joint;
+				if (lastjoint!=joint){
+					lastjoint = joint;
+
+					if (joint>0){
+						std::cout<< "Saved File (y/n)? : "; std::cin >> in;
+						StartTimePoint = std::chrono::system_clock::now();
+					}
+				}
+				i=0;
+
+				if (joint>0){
+					printf("Setting Joint #%d . Muscle %d\t%d\n", joint, muscle_pair[joint-1][0],muscle_pair[joint-1][1]);
+					std::cout<< "SetPoint : "; std::cin >> SetPoint_Angle[joint-1];
+
+					while(!_kbhit()){
+						read_sensor_all(i,SensorData,JointAngle);
+						EndTimePoint = std::chrono::system_clock::now();
+						TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+						i++;
+
+						printf("\r");
+						//printf("\n");
+						Input = JointAngle[joint-1];
+						printf("%.1f\t%.1f\t", SetPoint_Angle[joint-1], Input);
+						printf("Error: %.1f\t", SetPoint_Angle[joint-1] - Input);
+
+						tuneflag= PIDTune.Runtime();
+						if (tuneflag!=0){
+							printf ("Tuning Done\t");
+							break;
+						}
+						else
+							printf ("Tuning\t");
+
+						printf("Out: %5.2f\t", Output);
+						muscle_pair_val[joint-1][0] += Output;
+						muscle_pair_val[joint-1][1] -= Output;
+						setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
+						setState(muscle_pair[joint-1][1],muscle_pair_val[joint-1][1]);
+						usleep(50000);
+						printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[joint-1][0], muscle_pair_val[joint-1][1]);
+					}
+
+					Kp = PIDTune.GetKp();
+					Ki = PIDTune.GetKi();
+					Kd = PIDTune.GetKd();
+					std::cout << "\n" << Kp << "\t" << Ki << "\t" << Kd << "\n";
+
+					// full log version to minimize time
+					if (in=='y'){
+						std::cout<< "Message : "; std::cin >> msg;
+						fulllog(msg,SensorData,SetPoint_Angle,IMUData.calData);
+					}
+					else
+						std::cout << "Not saving file\n";
+				}
+				else
+					break;
+			}
 			Reset_Valve();
 			break;
 		}
@@ -1528,8 +1605,9 @@ int main(int argc, char *argv[]) {
 		printf("2 : Testing IMU Sensor\n");
 	  printf("3 : Testing a desired Muscle/Valve with desired pressure\n");
 	  printf("4 : Testing all Muscle/Valves with preset pressure\n");
-	  printf("5 : Testing Bang-bang\n");
+	  printf("5 : Testing Bang-bang 1 joint\n");
 	  printf("6 : Bang-bang Controller\n");
+	  printf("7 : Testing PID Controller\n");
 	  printf("7 : PID Tuning\n");
 	  printf("99 : Testing saving loading file\n");
 	}

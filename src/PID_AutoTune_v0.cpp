@@ -46,7 +46,7 @@ int PID_ATune::Runtime()
 
 	auto now = std::chrono::system_clock::now();
 	std::chrono::duration<double, std::milli> timeChange = now - lastNow;
-	if(timeChange < std::chrono::milliseconds(sampleTime)) return false;
+	if(timeChange < std::chrono::milliseconds(sampleTime)) return 0;
 	lastNow = now;
 
 	double refVal = *input;
