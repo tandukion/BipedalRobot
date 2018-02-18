@@ -51,6 +51,7 @@
 /* Arduino PID Library */
 #include <PID_v1.h>
 #include <PID_AutoTune_v0.h>
+#include <PIDAutotuner.h>
 
 /* for sensors */
 #define pin_cs_sensor P9_13 // 0_31=31
@@ -1011,6 +1012,14 @@ void test_valve (){
   }
 }
 
+// Output Saturation
+void OutputSaturation (double *MuscleVal){
+	if (*MuscleVal > MAX_PRESSURE)
+		*MuscleVal = MAX_PRESSURE;
+	else if (*MuscleVal < MIN_PRESSURE)
+		*MuscleVal = MIN_PRESSURE;
+}
+
 // Bang-Bang Controller Test
 int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *DownMuscleVal){
 
@@ -1115,10 +1124,8 @@ int main(int argc, char *argv[]) {
   myPID.SetMode(AUTOMATIC);
 
 	PID_ATune PIDTune(&Input,&Output);
-	PIDTune.SetControlType(1); // mode 0 = PI, 1 = PID
-	PIDTune.SetOutputStep(0.01);
-	PIDTune.SetNoiseBand(0.5);
-	PIDTune.SetLookbackSec(5);
+
+	PIDAutotuner tuner = PIDAutotuner();
 
 	int tuneflag=0;
 
@@ -1476,18 +1483,34 @@ int main(int argc, char *argv[]) {
 		}
 		case '7':{
 			printf("Testing PID\n");
-			std::cout<< "Kp :"; std::cin >> Kp;
-			std::cout<< "Ki :"; std::cin >> Ki;
-			std::cout<< "Kd :"; std::cin >> Kd;
-			std::cout<< "SetPoint : "; std::cin >> SetPoint;
+			std::cout<< "Used saved parameters? (y/n):"; std::cin >> in;
+			if (in=='y')
+				loadTunings(&Kp,&Ki,&Kd);
+			else{
+				std::cout<< "Kp :"; std::cin >> Kp;
+				std::cout<< "Ki :"; std::cin >> Ki;
+				std::cout<< "Kd :"; std::cin >> Kd;
+			}
 			myPID.SetTunings(Kp,Ki,Kd);
+			std::cout<< "SetPoint : "; std::cin >> SetPoint;
 
 			std::cout << Kp << "\t" << Ki << "\t" << Kd << "\t" << SetPoint << "\n";
 			//for (i=0;i<SampleNum;i++){
-			i=0;
+
 			joint = 1;
+
+			if (joint>0){
+				std::cout<< "Saved File (y/n)? : "; std::cin >> in;
+				StartTimePoint = std::chrono::system_clock::now();
+			}
+			i=0;
+
 			while(!_kbhit()){
 				read_sensor_all(i,SensorData,JointAngle);
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
+
 				//printf("\n");
 				printf("\r");
 				printf("%.1f\t", JointAngle[0]);
@@ -1498,12 +1521,10 @@ int main(int argc, char *argv[]) {
 
 				muscle_pair_val[joint-1][0] += Output;
 				muscle_pair_val[joint-1][1] -= Output;
-				for (j=0;j<2;j++){
-					if (muscle_pair_val[joint-1][j] > MAX_PRESSURE)
-						muscle_pair_val[joint-1][j] = MAX_PRESSURE;
-					else if (muscle_pair_val[joint-1][j] < MIN_PRESSURE)
-						muscle_pair_val[joint-1][j] = MIN_PRESSURE;
-				}
+
+				// Output OutputSaturation
+				OutputSaturation(&muscle_pair_val[joint-1][0]);
+				OutputSaturation(&muscle_pair_val[joint-1][1]);
 
 				setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
 				setState(muscle_pair[joint-1][1],muscle_pair_val[joint-1][1]);
@@ -1512,6 +1533,16 @@ int main(int argc, char *argv[]) {
 				printf("Out: %5.2f\t", Output);
 				printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[joint-1][0], muscle_pair_val[joint-1][1]);
 			}
+
+
+			// full log version to minimize time
+			if (in=='y'){
+				std::cout<< "Message : "; std::cin >> msg;
+				fulllog(msg,SensorData,SetPoint_Angle,IMUData.calData);
+			}
+			else
+				std::cout << "Not saving file\n";
+
 			Reset_Valve();
 			break;
 		}
@@ -1531,9 +1562,80 @@ int main(int argc, char *argv[]) {
 				}
 				i=0;
 
+
 				if (joint>0){
 					printf("Setting Joint #%d . Muscle %d\t%d\n", joint, muscle_pair[joint-1][0],muscle_pair[joint-1][1]);
 					std::cout<< "SetPoint : "; std::cin >> SetPoint_Angle[joint-1];
+
+					// VER 2
+					/*
+
+					tuner.setTargetInputValue(SetPoint_Angle[joint-1]);
+					double loopInterval = 10;
+	    		tuner.setLoopInterval(loopInterval);
+	    		tuner.setOutputRange(-0.8, 0.8);
+	    		tuner.setZNMode(PIDAutotuner::znModeBasicPID);
+					tuner.startTuningLoop();
+
+
+					std::chrono::system_clock::time_point tick1, tick2;
+					long tickval;
+
+					while (!tuner.isFinished()) {
+		        // This loop must run at the same speed as the PID control loop being tuned
+		        tick1 = std::chrono::system_clock::now();
+
+
+						printf("\n");
+		        // Get input value here (temperature, encoder position, velocity, etc)
+						read_sensor_all(i,SensorData,JointAngle);
+						Input = JointAngle[joint-1];
+						printf("%.1f\t",  Input);
+
+		        // Call tunePID() with the input value
+		        Output = tuner.tunePID(Input);
+						printf("output:%d\t",  tuner.getoutputstate());
+						printf("ku:%4.2f\t",  tuner.getku());
+						printf("tu:%4.2f\t",  tuner.gettu());
+						printf("OutVal: %5.2f\t", Output);
+
+		        // Set the output - tunePid() will return values within the range configured
+		        // by setOutputRange(). Don't change the value or the tuning results will be
+		        // incorrect.
+
+						muscle_pair_val[joint-1][0] += Output;
+						muscle_pair_val[joint-1][1] -= Output;
+
+						// Output Saturation
+						OutputSaturation(&muscle_pair_val[joint-1][0]);
+						OutputSaturation(&muscle_pair_val[joint-1][1]);
+
+						setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
+						setState(muscle_pair[joint-1][1],muscle_pair_val[joint-1][1]);
+						usleep(50000);
+						printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[joint-1][0], muscle_pair_val[joint-1][1]);
+
+        		// This loop must run at the same speed as the PID control loop being tuned
+        		while ( tickval < loopInterval){
+							tick2 = std::chrono::system_clock::now();
+							tickval = std::chrono::duration_cast<std::chrono::microseconds> (tick2-tick1).count();
+							usleep(1);
+						}
+    			}
+
+					Kp = tuner.getKp();
+					Ki = tuner.getKi();
+					Kd = tuner.getKd();
+					*/
+
+					// VER 1
+					/**/
+
+					PIDTune.SetControlType(1); // mode 0 = PI, 1 = PID
+					PIDTune.SetOutputStep(0.01);
+					PIDTune.SetNoiseBand(0.5);
+					PIDTune.SetLookbackSec(5);
+
 
 					while(!_kbhit()){
 						read_sensor_all(i,SensorData,JointAngle);
@@ -1541,11 +1643,10 @@ int main(int argc, char *argv[]) {
 						TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 						i++;
 
-						printf("\r");
-						//printf("\n");
+						//printf("\r");
+						printf("\n");
 						Input = JointAngle[joint-1];
-						printf("%.1f\t%.1f\t", SetPoint_Angle[joint-1], Input);
-						printf("Error: %.1f\t", SetPoint_Angle[joint-1] - Input);
+						printf("%.1f\t",Input);
 
 						tuneflag= PIDTune.Runtime();
 						if (tuneflag!=0){
@@ -1555,9 +1656,18 @@ int main(int argc, char *argv[]) {
 						else
 							printf ("Tuning\t");
 
+
+						printf("%d %d\t",  PIDTune.getjustchanged(), PIDTune.getpeakCount());
+						//printf("%d %d\t",  PIDTune.getisMax(), PIDTune.getisMin());
+
 						printf("Out: %5.2f\t", Output);
 						muscle_pair_val[joint-1][0] += Output;
 						muscle_pair_val[joint-1][1] -= Output;
+
+						// Output Saturation
+						OutputSaturation(&muscle_pair_val[joint-1][0]);
+						OutputSaturation(&muscle_pair_val[joint-1][1]);
+
 						setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
 						setState(muscle_pair[joint-1][1],muscle_pair_val[joint-1][1]);
 						usleep(50000);
@@ -1567,7 +1677,11 @@ int main(int argc, char *argv[]) {
 					Kp = PIDTune.GetKp();
 					Ki = PIDTune.GetKi();
 					Kd = PIDTune.GetKd();
+					/**/
+
 					std::cout << "\n" << Kp << "\t" << Ki << "\t" << Kd << "\n";
+
+					saveTunings(Kp,Ki,Kd);
 
 					// full log version to minimize time
 					if (in=='y'){

@@ -47,13 +47,15 @@ void PIDAutotuner::startTuningLoop() {
     i = 0; // Cycle counter
     output = true; // Current output state
     outputValue = maxOutput;
-    t1 = t2 = micros(); // Times used for calculating period
+    //t1 = t2 = micros(); // Times used for calculating period
+    tick1 = tick2 = std::chrono::system_clock::now();
+
     microseconds = tHigh = tLow = 0; // More time variables
     max = -1000000; // Max input
     min = 1000000; // Min input
     pAverage = iAverage = dAverage = 0;
 
-    sei();
+    //sei();
 }
 
 // Run one cycle of the loop
@@ -77,13 +79,13 @@ double PIDAutotuner::tunePID(double input) {
     //      Ziegler-Nichols method
 
     // Calculate time delta
-    long prevMicroseconds = microseconds;
-    microseconds = micros();
-    double deltaT = microseconds - prevMicroseconds;
+    //long prevMicroseconds = microseconds;
+    //microseconds = micros();
+    //double deltaT = microseconds - prevMicroseconds;
 
     // Calculate max and min
-    max = max(max, input);
-    min = min(min, input);
+    max = std::max(max, input);
+    min = std::min(min, input);
 
     // Output is on and input signal has risen to target
     if (output && input > targetInputValue) {
@@ -91,8 +93,11 @@ double PIDAutotuner::tunePID(double input) {
         // Turn output off, record current time as t1, calculate tHigh, and reset maximum
         output = false;
         outputValue = minOutput;
-        t1 = micros();
-        tHigh = t1 - t2;
+        //t1 = micros();
+        //tHigh = t1 - t2;
+        tick1 = std::chrono::system_clock::now();;
+        tHigh = std::chrono::duration_cast<std::chrono::microseconds>(tick1 - tick2).count();
+
         max = targetInputValue;
     }
 
@@ -102,17 +107,21 @@ double PIDAutotuner::tunePID(double input) {
         // Turn output on, record current time as t2, calculate tLow
         output = true;
         outputValue = maxOutput;
-        t2 = micros();
-        tLow = t2 - t1;
+        //t2 = micros();
+        //tLow = t2 - t1;
+        tick2 = std::chrono::system_clock::now();
+        tLow = std::chrono::duration_cast<std::chrono::microseconds>(tick2 - tick1).count();
 
         // Calculate Ku (ultimate gain)
         // Formula given is Ku = 4d / πa
         // d is the amplitude of the output signal
         // a is the amplitude of the input signal
-        double ku = (4.0 * ((maxOutput - minOutput) / 2.0)) / (M_PI * (max - min) / 2.0);
+        ku = (4.0 * ((maxOutput - minOutput) / 2.0)) / (M_PI * (max - min) / 2.0);
+        //double ku = (4.0 * ((maxOutput - minOutput) / 2.0)) / (M_PI * (max - min) / 2.0);
 
         // Calculate Tu (period of output oscillations)
-        double tu = tLow + tHigh;
+        tu = tLow + tHigh;
+        //double tu = tLow + tHigh;
 
         // How gains are calculated
         // PID control algorithm needs Kp, Ki, and Kd
@@ -150,6 +159,12 @@ double PIDAutotuner::tunePID(double input) {
             kpConstant = 0.2;
             tiConstant = 0.5;
             tdConstant = 0.33;
+
+        } else if (znMode == znModePI) {
+
+            kpConstant = 0.45;
+            tiConstant = 0.833;
+            tdConstant = 0;
         }
 
         // Normal PID
@@ -204,3 +219,7 @@ bool PIDAutotuner::isFinished() {
 
     return (i >= cycles);
 }
+
+bool PIDAutotuner::getoutputstate(){  return output; };
+double PIDAutotuner::getku() { return ku;};
+double PIDAutotuner::gettu() { return tu;};

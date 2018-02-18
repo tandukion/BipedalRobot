@@ -1,6 +1,7 @@
 
 #include <chrono>
 #include <stdlib.h>
+#include <stdio.h>
 
 #ifndef PID_AutoTune_v0
 #define PID_AutoTune_v0
@@ -31,6 +32,11 @@ class PID_ATune
 	double GetKp();										// * once autotune is complete, these functions contain the
 	double GetKi();										//   computed tuning parameters.
 	double GetKd();										//
+
+  bool getjustchanged();
+  int getpeakCount();
+  bool getisMax();
+  bool getisMin();
 
   private:
     void FinishUp();

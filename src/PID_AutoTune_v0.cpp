@@ -37,6 +37,7 @@ int PID_ATune::Runtime()
 	{
 		running = false;
 		FinishUp();
+		printf("\nFinish\n");
 		return 1;
 	}
 
@@ -46,13 +47,19 @@ int PID_ATune::Runtime()
 
 	auto now = std::chrono::system_clock::now();
 	std::chrono::duration<double, std::milli> timeChange = now - lastNow;
-	if(timeChange < std::chrono::milliseconds(sampleTime)) return 0;
+	if(timeChange < std::chrono::milliseconds(sampleTime)){
+		printf("Wait\t");
+		return 0;
+	}
 	lastNow = now;
 
 	double refVal = *input;
+
+
 	justevaled=true;
 	if(!running)
 	{ //initialize working variables the first time around
+		printf("Init\t");
 		peakType = 0;
 		peakCount=0;
 		justchanged=false;
@@ -90,6 +97,10 @@ int PID_ATune::Runtime()
   {  //we don't want to trust the maxes or mins until the inputs array has been filled
 	return 0;
 	}
+
+
+	printf("refVal: %4.1f\t",refVal);
+	printf("%d %d\t",  isMax, isMin);
 
   if(isMax)
   {
@@ -205,3 +216,8 @@ int PID_ATune::GetLookbackSec()
 {
 	return nLookBack * sampleTime / 1000;
 }
+
+bool PID_ATune::getjustchanged() { return justchanged;};
+int PID_ATune::getpeakCount() { return peakCount;};
+bool PID_ATune::getisMax() { return isMax;};
+bool PID_ATune::getisMin() { return isMin;};

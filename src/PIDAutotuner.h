@@ -7,11 +7,16 @@
 #ifndef PIDAUTOTUNER_H
 #define PIDAUTOTUNER_H
 
-#include <Arduino.h>
+//#include <Arduino.h>
+#include <chrono>
+#include <stdlib.h>
+#include <algorithm>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+typedef int byte;
 
 class PIDAutotuner {
 
@@ -21,6 +26,7 @@ class PIDAutotuner {
         static const int znModeBasicPID = 0;
         static const int znModeLessOvershoot = 1;
         static const int znModeNoOvershoot = 2;
+        static const int znModePI = 3;
 
         PIDAutotuner();
 
@@ -52,6 +58,10 @@ class PIDAutotuner {
 
         bool isFinished(); // Is the tuning finished?
 
+        bool getoutputstate();
+        double getku();
+        double gettu();
+
     private:
 
         double targetInputValue = 0;
@@ -65,10 +75,15 @@ class PIDAutotuner {
         bool output;
         double outputValue;
         long microseconds, t1, t2, tHigh, tLow;
+
+        std::chrono::system_clock::time_point tick1, tick2;
+
         double max, min;
         double pAverage, iAverage, dAverage;
 
         double kp, ki, kd;
+
+        double ku,tu;
 };
 
 #endif
