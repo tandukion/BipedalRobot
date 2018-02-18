@@ -1483,6 +1483,9 @@ int main(int argc, char *argv[]) {
 		}
 		case '7':{
 			printf("Testing PID\n");
+
+			joint = 1;
+
 			std::cout<< "Used saved parameters? (y/n):"; std::cin >> in;
 			if (in=='y')
 				loadTunings(&Kp,&Ki,&Kd);
@@ -1492,12 +1495,12 @@ int main(int argc, char *argv[]) {
 				std::cout<< "Kd :"; std::cin >> Kd;
 			}
 			myPID.SetTunings(Kp,Ki,Kd);
-			std::cout<< "SetPoint : "; std::cin >> SetPoint;
+			std::cout<< "SetPoint : "; std::cin >> SetPoint_Angle[joint-1];
+			SetPoint = SetPoint_Angle[joint-1];
 
 			std::cout << Kp << "\t" << Ki << "\t" << Kd << "\t" << SetPoint << "\n";
 			//for (i=0;i<SampleNum;i++){
 
-			joint = 1;
 
 			if (joint>0){
 				std::cout<< "Saved File (y/n)? : "; std::cin >> in;
