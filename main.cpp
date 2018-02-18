@@ -1483,6 +1483,9 @@ int main(int argc, char *argv[]) {
 		}
 		case '7':{
 			printf("Testing PID\n");
+			printf ("ADD ABD are set to default\n");
+			setState(ADD_R,PRES_DEF);
+			setState(ADD_L,PRES_DEF);
 
 			joint = 1;
 
@@ -1552,6 +1555,9 @@ int main(int argc, char *argv[]) {
 
 		case '8':{
 			printf("PID Tuning\n");
+			printf ("ADD ABD are set to default\n");
+			setState(ADD_R,PRES_DEF);
+			setState(ADD_L,PRES_DEF);
 
 			while(1){
 				std::cout<< "Joint No. : "; std::cin >> joint;
