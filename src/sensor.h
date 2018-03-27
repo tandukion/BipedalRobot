@@ -8,6 +8,7 @@
 #define SENSOR_H
 
 #include "gpio.h"
+#include <iostream> 
 
 
 /* for sensors */
