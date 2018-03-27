@@ -165,11 +165,14 @@ int muscle_ch [NUM_OF_MUSCLE] = {IL_R,GMAX_R,VAS_R,HAM_R,TA_R,SOL_R,ADD_R,
 															 		ABD_L,TP_L,FB_L,RF_L};
 
 /* muscle pair for a joint */
-int muscle_pair [NUM_OF_POT_SENSOR][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
+#define muscle_pair_num 12
+// +2 for extra biarticular muscle RF
+int muscle_pair [muscle_pair_num][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
 																					{ABD_R,ADD_R}, {ABD_L,ADD_L},
 																					{VAS_R,HAM_R}, {VAS_L,HAM_L},
 																					{TA_R,SOL_R}, {TA_L,SOL_L},
-																					{FB_R,TP_R}, {FB_L,TP_L}
+																					{FB_R,TP_R}, {FB_L,TP_L},
+																					{RF_R,99}, {RF_L,99},			// for biarticular, can not use NULL=0
 																				};
 
 
@@ -1080,12 +1083,13 @@ void OutputSaturation (double *MuscleVal){
 // Bang-Bang Controller Test
 int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *DownMuscleVal){
 
-	double error = 1; // error compensation
+	double error = 2; // error compensation
 	static double dP =0;
 	int temp;
 	static double lastCh1, lastCh2;
 
-	if ((lastCh1!= *UpMuscleVal)&&(lastCh2!= *DownMuscleVal)){
+	if (!((lastCh1== *UpMuscleVal)&&(lastCh2== *DownMuscleVal))){
+		//printf("differ\n");
 		lastCh1 = *UpMuscleVal;
 		lastCh2 = *DownMuscleVal;
 		dP=0;
@@ -1159,7 +1163,7 @@ int main(int argc, char *argv[]) {
 	XsOutputMode outputMode = XOM_Calibrated;
 	XsOutputSettings outputSettings = XOS_CalibratedMode_All;
 
-	unsigned long i,j,k;
+	unsigned long i,j,k,l;
 	unsigned int ch_num;
 
 	/* Variable for ADC Board Data */
@@ -1172,8 +1176,8 @@ int main(int argc, char *argv[]) {
 	double MusclePressure[NUM_DAC*NUM_OF_CHANNELS];
 
 	// muscle pressure val init
-	double muscle_pair_val [NUM_OF_POT_SENSOR][2];
-	for (j=0;j<NUM_OF_POT_SENSOR;j++){
+	double muscle_pair_val [muscle_pair_num][2];
+	for (j=0;j<muscle_pair_num;j++){
 		for (k=0;k<2;k++){
 			//muscle_pair_val [j][k] = PRES_DEF;
 			muscle_pair_val [j][k] = 0;
@@ -1530,12 +1534,39 @@ int main(int argc, char *argv[]) {
 							BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[j][0],&muscle_pair_val[j][1]);
 							setState(muscle_pair[j][0],muscle_pair_val[j][0]);
 							setState(muscle_pair[j][1],muscle_pair_val[j][1]);
-							usleep(10000);
+							usleep(20000);
 
-							printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[j][0], muscle_pair_val[j][1]);
-							printf("P1: %.2f\t P2: %.2f\t", MusclePressure[muscle_pair[j][0]], MusclePressure[muscle_pair[j][1]]);
+							printf("P%2d: %.2f\t P%2d: %.2f\t", j,muscle_pair_val[j][0], j,muscle_pair_val[j][1]);
+							printf("P%2d: %.2f\t P%2d: %.2f\t", j,MusclePressure[muscle_pair[j][0]], j,MusclePressure[muscle_pair[j][1]]);
 							printf("\n");
 						}
+
+
+						// only for RF
+						for (k=0;k<4;k++){
+							if(k<2)
+								j=k;
+							else
+								j=k+2;
+							read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+							EndTimePoint = std::chrono::system_clock::now();
+							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+							i++;
+
+							printf("Joint %2d. ", j+1);
+							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+
+							BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[k%2+10][0],&muscle_pair_val[k%2+10][1]);
+							setState(muscle_pair[k%2+10][0],muscle_pair_val[k%2+10][0]);
+							setState(muscle_pair[k%2+10][1],muscle_pair_val[k%2+10][1]);
+							usleep(20000);
+
+							printf("P%2d: %.2f\t P%2d: %.2f\t", k%2+10,muscle_pair_val[k%2+10][0], k%2+10,muscle_pair_val[k%2+10][1]);
+							printf("P%2d: %.2f\t P%2d: %.2f\t", k%2+10,MusclePressure[muscle_pair[k%2+10][0]], k%2+10,MusclePressure[muscle_pair[k%2+10][1]]);
+							printf("\n");
+						}
+
+
 						printf("\n");
 
 						usleep(1000);
