@@ -9,6 +9,10 @@
 #define XsensIMU_H
 
 /* For Xsens IMU */
+
+#include <iostream>
+#include <iomanip>
+
 #include <xsens/xsportinfoarray.h>
 #include <xsens/xsdatapacket.h>
 #include <xsens/xstime.h>
@@ -30,6 +34,6 @@ void config_IMU(DeviceClass *device, XsPortInfo *mtPort, XsOutputMode outputMode
 void setOutput_IMU();
 void measure_IMU(DeviceClass *device, XsPortInfo *mtPort, XsOutputMode outputMode, XsOutputSettings outputSettings,
                   XsQuaternion *quaternion, XsEuler *euler, XsCalibratedData *calData, unsigned int *sample_time);
-void test_IMU();
+void test_IMU(DeviceClass *device, XsPortInfo *mtPort, XsQuaternion *quaternion, XsEuler *euler, XsCalibratedData *calData, unsigned int *sample_time);
 
 #endif
