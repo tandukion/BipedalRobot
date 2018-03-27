@@ -28,6 +28,12 @@
 #include <xcommunication/int_xsdatapacket.h>
 #include <xcommunication/enumerateusbdevices.h>
 
+/* for IMU */
+#define PORTNAME "/dev/ttyUSB0"
+#define BAUDRATE 921600
+
+#define DEFAULT_OUTPUT_MODE XOM_Orientation
+#define DEFAULT_OUTPUT_SETTINGS XOS_OrientationMode_Quaternion
 
 void init_IMU(DeviceClass *device, XsPortInfo *mtPort, char *portName, int baudRate);
 void config_IMU(DeviceClass *device, XsPortInfo *mtPort, XsOutputMode outputMode, XsOutputSettings outputSettings);

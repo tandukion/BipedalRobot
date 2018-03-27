@@ -1089,7 +1089,7 @@ int main(int argc, char *argv[]) {
 	    break;
 		}
 		case '2':
-			test_IMU();
+			test_IMU(&device,&mtPort,&quaternion,&euler,&calData,&sample_time);
 			break;
 	  case '3':{
 	    printf("Testing Valve\n");

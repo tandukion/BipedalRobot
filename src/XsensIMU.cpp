@@ -1,5 +1,5 @@
 /**
- * @file XsensIMU.c
+ * @file XsensIMU.cpp
  * based on Xsens Technologies B.V. example
  *
  */
