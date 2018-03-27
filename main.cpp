@@ -60,14 +60,14 @@
 #define pin_dout1_sensor P9_14 // 1_18=50
 #define pin_dout2_sensor  P9_15 // 1_16=48
 #define pin_dout3_sensor  P9_26 // 0_14=14
-#define pin_dout4_sensor  P9_27 // 3_19=115
+#define pin_dout4_sensor  P9_27 // 3_19=125
 
-#define NUM_ADC 2
+#define NUM_ADC 4
 #define NUM_ADC_PORT 8
 
-#define NUM_OF_SENSOR 10
 #define NUM_OF_POT_SENSOR 10
-#define NUM_OF_PRES_SENSOR 0
+#define NUM_OF_PRES_SENSOR 22
+#define NUM_OF_SENSOR NUM_OF_POT_SENSOR+NUM_OF_PRES_SENSOR
 
 /* for valves */
 #define pin_spi_sclk P9_21 // 0_3=3
@@ -109,7 +109,7 @@
 #define PIN_PRES_2 2    // Pin for Pressure Sensor 2
 
 /* INDEX PIN for Valve */
-#define NUM_OF_MUSCLE 14	// Number of muscle/valve
+#define NUM_OF_MUSCLE 22	// Number of muscle/valve
 
 #define IL_R		0
 #define GMAX_R	1
@@ -148,7 +148,7 @@
 /**                   GLOBAL VARIABLES                      **/
 /*************************************************************/
 
-long SampleNum = 100000;
+long SampleNum = 20000;
 unsigned long SensorValue[NUM_ADC][NUM_ADC_PORT];
 
 /* for sampling time */
@@ -158,9 +158,11 @@ double TimeStamp[MAX_SAMPLE_NUM];
 /* Table for muscle valve number and sensor number */
 int muscle_sensor [NUM_OF_MUSCLE] = {PIN_PRES_1,PIN_PRES_2};
 
-/* Table for muscle valve */
+/* Table for muscle valve channel */
 int muscle_ch [NUM_OF_MUSCLE] = {IL_R,GMAX_R,VAS_R,HAM_R,TA_R,SOL_R,ADD_R,
-																 IL_L,GMAX_L,VAS_L,HAM_L,TA_L,SOL_L,ADD_L};
+																	ABD_R,TP_R,FB_R,RF_R,
+																 IL_L,GMAX_L,VAS_L,HAM_L,TA_L,SOL_L,ADD_L,
+															 		ABD_L,TP_L,FB_L,RF_L};
 
 /* muscle pair for a joint */
 int muscle_pair [NUM_OF_POT_SENSOR][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
@@ -342,19 +344,27 @@ int get_DOUT_SENSOR(int adc_num) {
 /*         ADCValue to Pressure                   */
 /**************************************************/
 
+/**************************************************/
+//         ADCValue to Pressure
+// Desc  : Convert ADC value to Pressure (MPa)
+// Input : ADCValue : Current ADC Value
+/**************************************************/
 double ADCtoPressure (unsigned long ADCValue){
   /* Pressure Sensor Specification */
   double alpha = 0.0009;
   double beta = 0.04;
-  double Perror = 25; //Pressure error in kPa
+	// XFGM-6001MPGSR
+  //double Perror = 25; //Pressure error in kPa
+	// AG206-001MG
+  double Perror = 15; //Pressure error in kPa
 
   /* Using error */
-  //double error = Perror*1*alpha;
+  double error = Perror*1*alpha;
   /* Not using error */
-  double error = 0;
+  //double error = 0;
 
   double temp;
-  temp = (((double)ADCValue/4096)-error-beta)/alpha /1000;
+  temp = (((double)ADCValue/4096)+error-beta)/alpha /1000;
   return temp;
 }
 
@@ -362,10 +372,8 @@ double ADCtoPressure (unsigned long ADCValue){
 //         ADCValue to Angle
 // Desc  : Convert ADC value to Angle (Degree)
 // Input : ADCValue : Current ADC Value
-//				 Pot_ref	: ADC Value for 0 degree angle
-// Output: Sensor Val -> 1D array of Sensor Value in 1 ADC Board
+//				 Pot_ref	: ADC Value for 0 degree angled
 /**************************************************/
-
 double ADCtoAngle (unsigned long ADCValue, int Pot_ref){
   double temp;
   /* Output in degree */
@@ -435,24 +443,37 @@ unsigned long *read_sensor(unsigned long adc_num,unsigned long* sensorVal){
 //         - NUM_ADC_PORT : ADC board port number
 //     * There is no index here, only all the ADC Value on 1 time
 /***************************************************************/
-void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], double *Angle){
-  int j,k;
+void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], double *Angle, double *Pressure){
+  int j,k,index_adc;
   unsigned long *tmp_val0;
   unsigned long tmp_val[NUM_ADC_PORT];
 
   for (j = 0; j< NUM_ADC; j++){
     tmp_val0=read_sensor(j,tmp_val);
     for (k = 0; k< NUM_ADC_PORT; k++){
+			index_adc = j*NUM_ADC_PORT + k;
+
 			// get only used ports
-			if (j*NUM_ADC_PORT + k >= NUM_OF_SENSOR)
+			if (index_adc >= NUM_OF_SENSOR)
 				break;
 
       SensorVal[index][j][k]=tmp_val0[k];
       //printf("[%d][%d] %lu\n",j,k,SensorVal[j][k]);
 
 			// Getting Angle from Potentiometer
-			if (j*NUM_ADC_PORT + k < NUM_OF_POT_SENSOR){
-				Angle[j*NUM_ADC_PORT + k] = ADCtoAngle(tmp_val0[k],Pot_straight[j*NUM_ADC_PORT + k]);
+			if (index_adc < NUM_OF_POT_SENSOR){
+				Angle[index_adc] = ADCtoAngle(tmp_val0[k],Pot_straight[index_adc]);
+			}
+			// Getting Pressure from Pressure SENSOR
+			else if(index_adc >= NUM_OF_POT_SENSOR){
+
+				// for first board (Right) valve 0-10
+				if ((index_adc-NUM_OF_POT_SENSOR) < (NUM_OF_MUSCLE/2))
+					Pressure[index_adc-NUM_OF_POT_SENSOR] = ADCtoPressure(tmp_val0[k]);
+				// second board (Left) valve 16-26
+				else
+					Pressure[index_adc-NUM_OF_POT_SENSOR - (NUM_OF_MUSCLE/2) + NUM_OF_CHANNELS] = ADCtoPressure(tmp_val0[k]);
+
 			}
     }
   }
@@ -516,15 +537,15 @@ void init_IMU(DeviceClass *device, XsPortInfo *mtPort, char *portName, int baudR
 void config_IMU(DeviceClass *device, XsPortInfo *mtPort, XsOutputMode outputMode, XsOutputSettings outputSettings){
 
   // Put the device in configuration mode
-  //std::cout << "Putting device into configuration mode..." << std::endl;
+  std::cout << "Putting device into configuration mode..." << std::endl;
   device->gotoConfig();
 
   // Request the device Id to check the device type
   mtPort->setDeviceId(device->getDeviceId());
 
   // Print information about detected MTi / MTx / MTmk4 device
-  //std::cout << "Found a device with id: " << mtPort->deviceId().toString().toStdString() << " @ port: " << mtPort->portName().toStdString() << ", baudrate: " << mtPort->baudrate() << std::endl;
-  //std::cout << "Device: " << device->getProductCode().toStdString() << " opened." << std::endl;
+  std::cout << "Found a device with id: " << mtPort->deviceId().toString().toStdString() << " @ port: " << mtPort->portName().toStdString() << ", baudrate: " << mtPort->baudrate() << std::endl;
+  std::cout << "Device: " << device->getProductCode().toStdString() << " opened." << std::endl;
 
   // Configure the device. Note the differences between MTix and MTmk4
   //std::cout << "Configuring the device..." << std::endl;
@@ -551,15 +572,22 @@ void config_IMU(DeviceClass *device, XsPortInfo *mtPort, XsOutputMode outputMode
 
 			/* set with OutputConfiguration --> MTData2 */
 			XsOutputConfigurationArray configArray;
-			//XsOutputConfiguration quat(XDI_Quaternion, 100);
-			XsOutputConfiguration acc(XDI_Acceleration, 100);
-			XsOutputConfiguration gyr(XDI_RateOfTurn, 100);
-			XsOutputConfiguration sampletime(XDI_SampleTimeFine, 100);
 
-			//configArray.push_back(quat);
-			configArray.push_back(acc);
-			configArray.push_back(gyr);
+			if (outputMode == XOM_Orientation){
+				XsOutputConfiguration quat(XDI_Quaternion, 100);
+				configArray.push_back(quat);
+			}
+
+			else if (outputMode == XOM_Calibrated){
+				XsOutputConfiguration acc(XDI_Acceleration, 100);
+				XsOutputConfiguration gyr(XDI_RateOfTurn, 100);
+				configArray.push_back(acc);
+				configArray.push_back(gyr);
+			}
+
+			XsOutputConfiguration sampletime(XDI_SampleTimeFine, 100);
 			configArray.push_back(sampletime);
+
 			device->setOutputConfiguration(configArray);
     }
 
@@ -654,14 +682,14 @@ void test_IMU(){
 		while(1)
 		  {
 		  measure_IMU(&device,&mtPort, outputMode, outputSettings, &quaternion,&euler,&calData,&sample_time);
-			printf("\n");
+			//printf("\n");
 			std::cout  << "\r"
 			    << "W:" << std::setw(5) << std::fixed << std::setprecision(2) << quaternion.w()
 			    << ",X:" << std::setw(5) << std::fixed << std::setprecision(2) << quaternion.x()
 			    << ",Y:" << std::setw(5) << std::fixed << std::setprecision(2) << quaternion.y()
 			    << ",Z:" << std::setw(5) << std::fixed << std::setprecision(2) << quaternion.z()
 		    ;
-		  std::cout << ",Roll:" << std::setw(7) << std::fixed << std::setprecision(2) << euler.roll()
+		  std::cout << ",\tRoll:" << std::setw(7) << std::fixed << std::setprecision(2) << euler.roll()
 			    << ",Pitch:" << std::setw(7) << std::fixed << std::setprecision(2) << euler.pitch()
 			    << ",Yaw:" << std::setw(7) << std::fixed << std::setprecision(2) << euler.yaw()
 			   ;
@@ -940,8 +968,25 @@ void Reset_Valve (){
 		}
 	}
 }
+void SetAllValve (double value){
+	int i;
+	for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
+		if (i%16 < (NUM_OF_MUSCLE/2)){
+			setState(i,value);
+		}
+	}
+}
 
-
+void SetFrontalPlaneMuscle (double value){
+	setState(ADD_R,value);
+	setState(ADD_L,value);
+	setState(ABD_R,value);
+	setState(ABD_L,value);
+	setState(TP_R,value);
+	setState(TP_L,value);
+	setState(FB_R,value);
+	setState(FB_L,value);
+}
 
 /*===== Running test to print all the Sensor Data ======*/
 /* Read and print only ONCE for all sensor */
@@ -949,11 +994,12 @@ void test_sensor (int SampleNum){
   int index,j,k;
   static unsigned long Value[MAX_SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
 	double Angle[NUM_OF_POT_SENSOR];
+	double Pressure[NUM_DAC*NUM_OF_CHANNELS];
 
   //startlog("test_sensor");
 
   for(index=0;index<SampleNum;index++){
-    read_sensor_all(index,Value,Angle);
+    read_sensor_all(index,Value,Angle,Pressure);
     /**/
     for (j = 0; j< NUM_ADC; j++){
       for (k = 0; k< NUM_ADC_PORT; k++){
@@ -979,6 +1025,7 @@ void test_valve (){
   double val [NUM_OF_MUSCLE],sensorval;
   static unsigned long Value[MAX_SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
 	double Angle[NUM_OF_POT_SENSOR];
+	double Pressure[NUM_DAC*NUM_OF_CHANNELS];
 
   while(1){
     printf("Num of valve to test: ");
@@ -998,11 +1045,21 @@ void test_valve (){
 			printf("\n");
 
 			while(!_kbhit()){
-	      read_sensor_all(i,Value,Angle);
-				for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-					printf("%.1f\t", Angle[j]);
+	      read_sensor_all(i,Value,Angle,Pressure);
+				//for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+				//	printf("%.1f\t", Angle[j]);
+				//}
+
+				for (j = 0; j<valve_count;j++){
+					printf("Valve %d: %.3f\t", valve_num[j], Pressure[valve_num[j]]);
 				}
-				printSensorVal(i,Value);
+				/*
+				for (j = 0; j<valve_count;j++){
+					if (valve_num[j]< (NUM_OF_MUSCLE/2))
+						printf("Right Valve %d: %.3f\t", valve_num[j], Pressure[valve_num[j]]);
+					else
+						printf("Left Valve %d: %.3f\t", valve_num[j], Pressure[valve_num[j]- NUM_OF_CHANNELS + (NUM_OF_MUSCLE/2)]);
+				*/
 				printf("\n");
 				i++;
 			}
@@ -1038,7 +1095,7 @@ int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *Dow
 		//printf("Below SetPoint");
 		//if (PRES_DEF+dP < MAX_PRESSURE)
 		if (dP < MAX_PRESSURE)
-			dP+=0.01;
+			dP+=0.02;
 
 		// flag for stability
 		temp=-1;
@@ -1047,7 +1104,7 @@ int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *Dow
 		//printf("Above SetPoint");
 		//if (PRES_DEF-dP > MIN_PRESSURE)
 		if (abs(dP) < MAX_PRESSURE)
-			dP-=0.01;
+			dP-=0.02;
 
 		// flag for stability
 		temp=-1;
@@ -1093,7 +1150,9 @@ int main(int argc, char *argv[]) {
 	init_DAConvAD5328();
 	init_sensor();
 
-	//init_IMU(&device,&mtPort,PORTNAME,BAUDRATE);
+
+
+	init_IMU(&device,&mtPort,PORTNAME,BAUDRATE);
 	// Config IMU with default settings
 	//config_IMU(&device,&mtPort, DEFAULT_OUTPUT_MODE, DEFAULT_OUTPUT_SETTINGS);
 
@@ -1103,18 +1162,22 @@ int main(int argc, char *argv[]) {
 	unsigned long i,j,k;
 	unsigned int ch_num;
 
-
 	/* Variable for ADC Board Data */
+	// ==============>>>>>>.  Problem here for a lot of Data
 	unsigned long SensorData[SampleNum][NUM_ADC][NUM_ADC_PORT];
 
 	double JointAngle[NUM_OF_POT_SENSOR];
 	double SetPoint_Angle[NUM_OF_POT_SENSOR] ={0};
 
+	double MusclePressure[NUM_DAC*NUM_OF_CHANNELS];
+
 	// muscle pressure val init
 	double muscle_pair_val [NUM_OF_POT_SENSOR][2];
 	for (j=0;j<NUM_OF_POT_SENSOR;j++){
-		for (k=0;k<2;k++)
-			muscle_pair_val [j][k] = PRES_DEF;
+		for (k=0;k<2;k++){
+			//muscle_pair_val [j][k] = PRES_DEF;
+			muscle_pair_val [j][k] = 0;
+		}
 	}
 
 	/* PID library */
@@ -1136,14 +1199,20 @@ int main(int argc, char *argv[]) {
 	Reset_Valve();
 	usleep(1000);
 
-	char in,msg[20];
+	char in,in2,msg[20];
 	int logflag=0;
 
 	if (argc==2){
 	  switch (*argv[1]){
 	  case '1': {
 	    printf("Testing Sensor\n");
-		  printf("Sample \tPot1 \tPot2 \tPot3 \tPot4 \tPot5 \tPot6 \tPot7 \tPot8 \tPot9 \tPot10 \n");
+			double valuetest;
+			//printf("Set Value on all Valve: "); scanf ("%lf",&valuetest);
+			std::cout<< "Set Value on all Valve: "; std::cin >> valuetest;
+			SetAllValve(valuetest);
+
+			//printf("Sample \tPot1 \tPot2 \tPot3 \tPot4 \tPot5 \tPot6 \tPot7 \tPot8 \tPot9 \tPot10 \n");
+			printf("Sample \tR00 \tR01 \tR02 \tR03 \tR04 \tR05 \tR06 \tR07 \tR08 \tR09 \tR10 \tL00 \tL01 \tL02 \tL03 \tL04 \tL05 \tL06 \tL07 \tL08 \tL09 \tL10 \n");
 	    /* this is for using function */
 	    //test_sensor(SampleNum);
 
@@ -1151,14 +1220,19 @@ int main(int argc, char *argv[]) {
 	    /**/
 	    // config_IMU(&device,&mtPort, outputMode, outputSettings);
 			laps1 = clock();
+			StartTimePoint = std::chrono::system_clock::now();
 
 
 			//setState(IL_L,0.2);
 			//setState(GMAX_L,0.5);
 
 	    for (i=0;i<SampleNum;i++){
-	      read_sensor_all(i,SensorData,JointAngle);
+	      read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 	      //		measure_IMU(&device,&mtPort, outputMode, outputSettings, &quaternion,&euler,&calData,&sample_time);
+
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+
 
 				IMUData.calData[i] = calData;
 				IMUData.sample_time[i] = sample_time;
@@ -1182,10 +1256,17 @@ int main(int argc, char *argv[]) {
 					}
 	      }
 				*/
-
+				/*
 				for (j = 0; j<NUM_OF_POT_SENSOR;j++){
 					printf("%.1f\t", JointAngle[j]);
 				}
+				*/
+				/**/
+				for (j = 0; j<NUM_OF_PRES_SENSOR;j++){
+					//printf("%.3f\t", MusclePressure[j]);
+					printf("%.3f\t", MusclePressure[muscle_ch[j]]);
+				}
+				/**/
 	      /*
 				for (j=0;j<3;j++){
 					printf("%.3f\t", IMUData.calData[i].m_acc.value(j));
@@ -1208,9 +1289,9 @@ int main(int argc, char *argv[]) {
 	    printf ("-------------------\n");
 	    // fulllog("adc_acc_gyr",SensorData,SetPoint_Angle,IMUData.calData);
 	    /**/
-			// Saving test data
-			printf ("Save data (y/n)? ");
-	    scanf ("%c",&in);
+			std::cout<< "Save data (y/n)? "; std::cin >> in;
+			//printf ("Save data (y/n)? ");
+	    //scanf ("%c",&in);
 			if (in=='y'){
 				printf ("filename message: ");
 		    scanf ("%s",&msg);
@@ -1269,7 +1350,7 @@ int main(int argc, char *argv[]) {
 
 			for (i=0;i<2000000;i++){
 
-				read_sensor_all(i,SensorData,JointAngle);
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				printf("\r");
 				printf("[%d]\t",i);
 				for (j = 0; j<NUM_OF_POT_SENSOR;j++){
@@ -1314,7 +1395,7 @@ int main(int argc, char *argv[]) {
 						EndTimePoint = std::chrono::system_clock::now();
 						TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 
-						read_sensor_all(i,SensorData,JointAngle);
+						read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 						printf("\r");
 						//printf("\r");
 						Input = JointAngle[joint-1];
@@ -1344,9 +1425,8 @@ int main(int argc, char *argv[]) {
 		}
 		case '6':{
 			printf ("BangBang Controller for all joints\n");
-			printf ("ADD ABD are set to default\n");
-			setState(ADD_R,PRES_DEF);
-			setState(ADD_L,PRES_DEF);
+			printf ("ADD ABD TP FB are set to default\n");
+			//SetFrontalPlaneMuscle (PRES_DEF);
 
 			int mode,lastmode;
 			int flag[NUM_OF_POT_SENSOR] = {0};
@@ -1396,7 +1476,7 @@ int main(int argc, char *argv[]) {
 						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
 							if ((j==0)||(j==1)||(j==4)||(j==5)||(j==6)||(j==7)){
 								while(flag[j]<10){
-									read_sensor_all(i,SensorData,JointAngle);
+									read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 
 									EndTimePoint = std::chrono::system_clock::now();
 									TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
@@ -1423,7 +1503,7 @@ int main(int argc, char *argv[]) {
 								flag[j] = 0;
 							}
 							else{
-								read_sensor_all(i,SensorData,JointAngle);
+								read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 								EndTimePoint = std::chrono::system_clock::now();
 								TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 								i++;
@@ -1439,7 +1519,7 @@ int main(int argc, char *argv[]) {
 						// ======= only once corrected ========
 						printf("\r");
 						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-							read_sensor_all(i,SensorData,JointAngle);
+							read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 							EndTimePoint = std::chrono::system_clock::now();
 							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 							i++;
@@ -1450,9 +1530,10 @@ int main(int argc, char *argv[]) {
 							BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[j][0],&muscle_pair_val[j][1]);
 							setState(muscle_pair[j][0],muscle_pair_val[j][0]);
 							setState(muscle_pair[j][1],muscle_pair_val[j][1]);
-							usleep(50000);
+							usleep(10000);
 
 							printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[j][0], muscle_pair_val[j][1]);
+							printf("P1: %.2f\t P2: %.2f\t", MusclePressure[muscle_pair[j][0]], MusclePressure[muscle_pair[j][1]]);
 							printf("\n");
 						}
 						printf("\n");
@@ -1511,15 +1592,18 @@ int main(int argc, char *argv[]) {
 			}
 			i=0;
 
+			OutputSaturation(&muscle_pair_val[joint-1][0]);
+			OutputSaturation(&muscle_pair_val[joint-1][1]);
+
 			while(!_kbhit()){
-				read_sensor_all(i,SensorData,JointAngle);
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				EndTimePoint = std::chrono::system_clock::now();
 				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 				i++;
 
 				//printf("\n");
 				printf("\r");
-				printf("%.1f\t", JointAngle[0]);
+				printf("%5.2f\t", JointAngle[0]);
 
 				Input = JointAngle[0];
 				myPID.Compute();
@@ -1527,6 +1611,9 @@ int main(int argc, char *argv[]) {
 
 				muscle_pair_val[joint-1][0] += Output;
 				muscle_pair_val[joint-1][1] -= Output;
+
+				//muscle_pair_val[joint-1][0] = PRES_DEF + Output;
+				//muscle_pair_val[joint-1][1] = PRES_DEF - Output;
 
 				// Output OutputSaturation
 				OutputSaturation(&muscle_pair_val[joint-1][0]);
@@ -1597,7 +1684,7 @@ int main(int argc, char *argv[]) {
 
 						printf("\n");
 		        // Get input value here (temperature, encoder position, velocity, etc)
-						read_sensor_all(i,SensorData,JointAngle);
+						read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 						Input = JointAngle[joint-1];
 						printf("%.1f\t",  Input);
 
@@ -1641,13 +1728,13 @@ int main(int argc, char *argv[]) {
 					/**/
 
 					PIDTune.SetControlType(1); // mode 0 = PI, 1 = PID
-					PIDTune.SetOutputStep(0.01);
+					PIDTune.SetOutputStep(0.005);
 					PIDTune.SetNoiseBand(0.5);
 					PIDTune.SetLookbackSec(5);
 
 
 					while(!_kbhit()){
-						read_sensor_all(i,SensorData,JointAngle);
+						read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 						EndTimePoint = std::chrono::system_clock::now();
 						TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 						i++;
@@ -1672,6 +1759,9 @@ int main(int argc, char *argv[]) {
 						printf("Out: %5.2f\t", Output);
 						muscle_pair_val[joint-1][0] += Output;
 						muscle_pair_val[joint-1][1] -= Output;
+
+						//muscle_pair_val[joint-1][0] = PRES_DEF + Output;
+						//muscle_pair_val[joint-1][1] = PRES_DEF - Output;
 
 						// Output Saturation
 						OutputSaturation(&muscle_pair_val[joint-1][0]);

@@ -45,13 +45,13 @@ echo in > /sys/class/gpio/gpio48/direction
 # DOUT3
 # P9_26 0_14=14
 echo 14 > /sys/class/gpio/export
-echo in > /sys/class/gpio/gpio48/direction
+echo in > /sys/class/gpio/gpio14/direction
 
 # === AD Board #4 ===
 # DOUT4
-# P9_27 3_19=115
+# P9_27 3_19=125
 echo 115 > /sys/class/gpio/export
-echo in > /sys/class/gpio/gpio48/direction
+echo in > /sys/class/gpio/gpio115/direction
 
 
 
@@ -83,11 +83,11 @@ echo out > /sys/class/gpio/gpio7/direction
 # CS3
 # P9_23 1_17=49
 echo 49 > /sys/class/gpio/export
-echo out > /sys/class/gpio/gpio51/direction
+echo out > /sys/class/gpio/gpio49/direction
 # CS4
 # P9_24 0_15=15
 echo 15 > /sys/class/gpio/export
-echo out > /sys/class/gpio/gpio7/direction
+echo out > /sys/class/gpio/gpio15/direction
 
 
 
@@ -95,5 +95,3 @@ echo out > /sys/class/gpio/gpio7/direction
 # P9_22 0_2=2
 echo 2 > /sys/class/gpio/export
 echo out > /sys/class/gpio/gpio2/direction
-
-
