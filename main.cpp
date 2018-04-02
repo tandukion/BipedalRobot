@@ -1416,6 +1416,7 @@ int main(int argc, char *argv[]) {
 
 						printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[joint-1][0], muscle_pair_val[joint-1][1]);
 						printf("dP1: %5.2f\t ", dP);
+						printf("P1: %.2f\t P2: %.2f\t", MusclePressure[muscle_pair[joint-1][0]], MusclePressure[muscle_pair[joint-1][1]]);
 
 
 						// if logging
