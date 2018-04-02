@@ -1081,7 +1081,7 @@ void OutputSaturation (double *MuscleVal){
 }
 
 // Bang-Bang Controller Test
-int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *DownMuscleVal){
+double BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *DownMuscleVal){
 
 	double error = 2; // error compensation
 	static double dP =0;
@@ -1140,7 +1140,7 @@ int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *Dow
 		//*DownMuscleVal = MAX_PRESSURE;
 	//else if (*DownMuscleVal < MIN_PRESSURE)
 		//*DownMuscleVal = MIN_PRESSURE;
-	return temp;
+	return dP;
 }
 
 
@@ -1370,6 +1370,8 @@ int main(int argc, char *argv[]) {
 		case '5':{
 			printf("Testing Bang-bang\n");
 
+			double dP;
+
 			while(1){
 				std::cout<< "Joint No. : "; std::cin >> joint;
 				if (lastjoint!=joint){
@@ -1400,19 +1402,21 @@ int main(int argc, char *argv[]) {
 						TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 
 						read_sensor_all(i,SensorData,JointAngle,MusclePressure);
-						printf("\r");
+						printf("\n");
 						//printf("\r");
 						Input = JointAngle[joint-1];
 						printf("%.1f\t%.1f\t", SetPoint_Angle[joint-1], Input);
-						printf("Error: %.1f\t", SetPoint_Angle[joint-1] - Input);
-						printf("time: %.1f\t", TimeStamp[i]);
+						//printf("Error: %.1f\t", SetPoint_Angle[joint-1] - Input);
+						//printf("time: %.1f\t", TimeStamp[i]);
 
-						BangBang(SetPoint_Angle[joint-1],Input,&muscle_pair_val[joint-1][0],&muscle_pair_val[joint-1][1]);
+						dP= BangBang(SetPoint_Angle[joint-1],Input,&muscle_pair_val[joint-1][0],&muscle_pair_val[joint-1][1]);
 						setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
 						setState(muscle_pair[joint-1][1],muscle_pair_val[joint-1][1]);
 						usleep(50000);
 
 						printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[joint-1][0], muscle_pair_val[joint-1][1]);
+						printf("dP1: %5.2f\t ", dP);
+
 
 						// if logging
 						if ((logflag==1)||(logflag==2))
