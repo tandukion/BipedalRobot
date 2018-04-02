@@ -122,18 +122,40 @@
 #define TP_R		8
 #define FB_R		9
 #define RF_R		10
+#define IL_L		11
+#define GMAX_L	12
+#define VAS_L		13
+#define HAM_L		14
+#define TA_L 		15
+#define SOL_L 	16
+#define ADD_L 	17
+#define ABD_L 	18
+#define TP_L		19
+#define FB_L		20
+#define RF_L		21
 
-#define IL_L		16
-#define GMAX_L	17
-#define VAS_L		18
-#define HAM_L		19
-#define TA_L 		20
-#define SOL_L 	21
-#define ADD_L 	22
-#define ABD_L 	23
-#define TP_L		24
-#define FB_L		25
-#define RF_L		26
+#define IL_R_CH			0
+#define GMAX_R_CH		1
+#define VAS_R_CH		2
+#define HAM_R_CH		3
+#define TA_R_CH 		4
+#define SOL_R_CH 		5
+#define ADD_R_CH	 	6
+#define ABD_R_CH	 	7
+#define TP_R_CH			8
+#define FB_R_CH			9
+#define RF_R_CH			10
+#define IL_L_CH			16
+#define GMAX_L_CH		17
+#define VAS_L_CH		18
+#define HAM_L_CH		19
+#define TA_L_CH 		20
+#define SOL_L_CH	 	21
+#define ADD_L_CH	 	22
+#define ABD_L_CH	 	23
+#define TP_L_CH			24
+#define FB_L_CH			25
+#define RF_L_CH			26
 
 /* VALUE */
 #define MAX_PRESSURE 0.8
@@ -156,13 +178,19 @@ std::chrono::system_clock::time_point StartTimePoint, EndTimePoint;
 double TimeStamp[MAX_SAMPLE_NUM];
 
 /* Table for muscle valve number and sensor number */
+struct MuscleDataArray{
+	int channel;			// channel for the valve
+	double value;	// pressure value
+	double dP;				// delta P for control output
+} muscle [NUM_OF_MUSCLE];
+
 int muscle_sensor [NUM_OF_MUSCLE] = {PIN_PRES_1,PIN_PRES_2};
 
 /* Table for muscle valve channel */
-int muscle_ch [NUM_OF_MUSCLE] = {IL_R,GMAX_R,VAS_R,HAM_R,TA_R,SOL_R,ADD_R,
-																	ABD_R,TP_R,FB_R,RF_R,
-																 IL_L,GMAX_L,VAS_L,HAM_L,TA_L,SOL_L,ADD_L,
-															 		ABD_L,TP_L,FB_L,RF_L};
+int muscle_ch [NUM_OF_MUSCLE] = {IL_R_CH,GMAX_R_CH,VAS_R_CH,HAM_R_CH,TA_R_CH,SOL_R_CH,ADD_R_CH,
+																	ABD_R_CH,TP_R_CH,FB_R_CH,RF_R_CH,
+																 IL_L_CH,GMAX_L_CH,VAS_L_CH,HAM_L_CH,TA_L_CH,SOL_L_CH,ADD_L_CH,
+															 		ABD_L_CH,TP_L_CH,FB_L_CH,RF_L_CH};
 
 /* muscle pair for a joint */
 #define muscle_pair_num 12
@@ -326,6 +354,10 @@ void setState(unsigned int ch, double pressure_coeff)
 	setDARegister(ch, (unsigned short)(pressure_coeff * resolution));
 }
 
+void setMuscle(MuscleDataArray muscle)
+{
+	setState(muscle.channel,muscle.value);
+}
 /*************************************************************/
 /**                  FUNCTION FOR SENSOR                    **/
 /*************************************************************/
@@ -469,13 +501,14 @@ void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT
 			}
 			// Getting Pressure from Pressure SENSOR
 			else if(index_adc >= NUM_OF_POT_SENSOR){
+				Pressure[index_adc-NUM_OF_POT_SENSOR] = ADCtoPressure(tmp_val0[k]);
 
 				// for first board (Right) valve 0-10
-				if ((index_adc-NUM_OF_POT_SENSOR) < (NUM_OF_MUSCLE/2))
-					Pressure[index_adc-NUM_OF_POT_SENSOR] = ADCtoPressure(tmp_val0[k]);
+				//if ((index_adc-NUM_OF_POT_SENSOR) < (NUM_OF_MUSCLE/2))
+				//	Pressure[index_adc-NUM_OF_POT_SENSOR] = ADCtoPressure(tmp_val0[k]);
 				// second board (Left) valve 16-26
-				else
-					Pressure[index_adc-NUM_OF_POT_SENSOR - (NUM_OF_MUSCLE/2) + NUM_OF_CHANNELS] = ADCtoPressure(tmp_val0[k]);
+				//else
+				//	Pressure[index_adc-NUM_OF_POT_SENSOR - (NUM_OF_MUSCLE/2) + NUM_OF_CHANNELS] = ADCtoPressure(tmp_val0[k]);
 
 			}
     }
@@ -1081,35 +1114,36 @@ void OutputSaturation (double *MuscleVal){
 }
 
 // Bang-Bang Controller Test
-int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *DownMuscleVal){
+int BangBang (double SetPoint, double RefPoint, MuscleDataArray *MusUp, MuscleDataArray *MusDown){
 
-	double error = 2; // error compensation
-	static double dP =0;
+	double error = 3; // error compensation
+	double dP;
 	int temp;
 	static double lastCh1, lastCh2;
-
+/*
 	if (!((lastCh1== *UpMuscleVal)&&(lastCh2== *DownMuscleVal))){
 		//printf("differ\n");
 		lastCh1 = *UpMuscleVal;
 		lastCh2 = *DownMuscleVal;
 		dP=0;
 	}
-
+*/
+	dP = MusUp->dP;
 	if (RefPoint < SetPoint - error){
 		//printf("Below SetPoint");
-		//if (PRES_DEF+dP < MAX_PRESSURE)
-		if (dP < MAX_PRESSURE)
-			dP+=0.02;
-
+		if (dP < MAX_PRESSURE){
+			dP=0.01;
+			//MusUp->dP =0.01;
+		}
 		// flag for stability
 		temp=-1;
 	}
 	else if (RefPoint > SetPoint + error){
 		//printf("Above SetPoint");
-		//if (PRES_DEF-dP > MIN_PRESSURE)
-		if (abs(dP) < MAX_PRESSURE)
-			dP-=0.02;
-
+		if (abs(dP) < MAX_PRESSURE){
+			dP=-0.01;
+			//MusUp->dP = -0.01;
+		}
 		// flag for stability
 		temp=-1;
 	}
@@ -1117,6 +1151,9 @@ int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *Dow
 		//printf("Reach SetPoint");
 		temp=1;
 	}
+
+	MusUp->dP = dP;
+	MusDown->dP = dP;
 
 	/*
 	setState(UpMuscleChannel,PRES_DEF+dP);
@@ -1127,19 +1164,10 @@ int BangBang (double SetPoint, double RefPoint, double *UpMuscleVal, double *Dow
 	//printf("dP: %.1f\t", dP);
 
 	// Output Saturation
-	if ((*UpMuscleVal+dP < MAX_PRESSURE)&&(*UpMuscleVal+dP > MIN_PRESSURE))
-		*UpMuscleVal += dP;
-	//if (*UpMuscleVal > MAX_PRESSURE)
-		//*UpMuscleVal = MAX_PRESSURE;
-	//else if (*UpMuscleVal < MIN_PRESSURE)
-		//*UpMuscleVal = MIN_PRESSURE;
-
-	if ((*DownMuscleVal-dP < MAX_PRESSURE)&&(*DownMuscleVal-dP > MIN_PRESSURE))
-		*DownMuscleVal -= dP;
-	//if (*DownMuscleVal > MAX_PRESSURE)
-		//*DownMuscleVal = MAX_PRESSURE;
-	//else if (*DownMuscleVal < MIN_PRESSURE)
-		//*DownMuscleVal = MIN_PRESSURE;
+	MusUp->value += MusUp->dP;
+	MusDown->value -= MusDown->dP;
+	OutputSaturation(&(MusUp->value));
+	OutputSaturation(&(MusDown->value));
 	return temp;
 }
 
@@ -1154,17 +1182,15 @@ int main(int argc, char *argv[]) {
 	init_DAConvAD5328();
 	init_sensor();
 
-
-
-	init_IMU(&device,&mtPort,PORTNAME,BAUDRATE);
-	// Config IMU with default settings
-	//config_IMU(&device,&mtPort, DEFAULT_OUTPUT_MODE, DEFAULT_OUTPUT_SETTINGS);
-
-	XsOutputMode outputMode = XOM_Calibrated;
-	XsOutputSettings outputSettings = XOS_CalibratedMode_All;
-
 	unsigned long i,j,k,l;
 	unsigned int ch_num;
+
+	for (i=0;i<NUM_OF_MUSCLE;i++){
+		muscle[i].channel = muscle_ch[i];
+		muscle[i].dP = 0;
+		muscle[i].value = PRES_DEF;
+	}
+
 
 	/* Variable for ADC Board Data */
 	// ==============>>>>>>.  Problem here for a lot of Data
@@ -1183,6 +1209,13 @@ int main(int argc, char *argv[]) {
 			muscle_pair_val [j][k] = 0;
 		}
 	}
+
+	init_IMU(&device,&mtPort,PORTNAME,BAUDRATE);
+	// Config IMU with default settings
+	//config_IMU(&device,&mtPort, DEFAULT_OUTPUT_MODE, DEFAULT_OUTPUT_SETTINGS);
+
+	XsOutputMode outputMode = XOM_Calibrated;
+	XsOutputSettings outputSettings = XOS_CalibratedMode_All;
 
 	/* PID library */
 	double SetPoint, Input, Output;
@@ -1217,7 +1250,8 @@ int main(int argc, char *argv[]) {
 
 			//printf("Sample \tPot1 \tPot2 \tPot3 \tPot4 \tPot5 \tPot6 \tPot7 \tPot8 \tPot9 \tPot10 \n");
 			printf("Sample \tR00 \tR01 \tR02 \tR03 \tR04 \tR05 \tR06 \tR07 \tR08 \tR09 \tR10 \tL00 \tL01 \tL02 \tL03 \tL04 \tL05 \tL06 \tL07 \tL08 \tL09 \tL10 \n");
-	    /* this is for using function */
+
+			/* this is for using function */
 	    //test_sensor(SampleNum);
 
 	    /* this is for direct reading from main, to test reading at once in main loop */
@@ -1226,9 +1260,6 @@ int main(int argc, char *argv[]) {
 			laps1 = clock();
 			StartTimePoint = std::chrono::system_clock::now();
 
-
-			//setState(IL_L,0.2);
-			//setState(GMAX_L,0.5);
 
 	    for (i=0;i<SampleNum;i++){
 	      read_sensor_all(i,SensorData,JointAngle,MusclePressure);
@@ -1260,17 +1291,17 @@ int main(int argc, char *argv[]) {
 					}
 	      }
 				*/
-				/*
+				/**/
 				for (j = 0; j<NUM_OF_POT_SENSOR;j++){
 					printf("%.1f\t", JointAngle[j]);
 				}
-				*/
 				/**/
+				/*
 				for (j = 0; j<NUM_OF_PRES_SENSOR;j++){
-					//printf("%.3f\t", MusclePressure[j]);
-					printf("%.3f\t", MusclePressure[muscle_ch[j]]);
+					printf("%.3f\t", MusclePressure[j]);
+					//printf("%.3f\t", MusclePressure[muscle_ch[j]]);
 				}
-				/**/
+				*/
 	      /*
 				for (j=0;j<3;j++){
 					printf("%.3f\t", IMUData.calData[i].m_acc.value(j));
@@ -1318,26 +1349,7 @@ int main(int argc, char *argv[]) {
 	    printf("Testing Preset Pressure\n");
 
 			double muscle_val[32]= {0};
-
-
 			double muscle_zero_deg_value [32] = { 0 };
-
-			/*
-			muscle_val[IL_R] = 0.1;
-			muscle_val[IL_L] = 0.1;
-			muscle_val[GMAX_R] = 0.6;
-			muscle_val[GMAX_L] = 0.6;
-			//muscle_val[VAS_R] = 0.8;
-			//muscle_val[VAS_L] = 0.8;
-			//muscle_val[HAM_R] = 0.5;
-			//muscle_val[HAM_L] = 0.5;
-			//muscle_val[TA_R] = 0.44;
-			//muscle_val[TA_L] = 0.44;
-			//muscle_val[SOL_R] = 0.31;
-			//muscle_val[SOL_L] = 0.31;
-			muscle_val[ADD_R] = 0.3;
-			muscle_val[ADD_L] = 0.3;
-			*/
 
 			for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
 				if (i%16 < (NUM_OF_MUSCLE/2)){
@@ -1400,19 +1412,25 @@ int main(int argc, char *argv[]) {
 						TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 
 						read_sensor_all(i,SensorData,JointAngle,MusclePressure);
-						printf("\r");
+						printf("\n");
 						//printf("\r");
 						Input = JointAngle[joint-1];
 						printf("%.1f\t%.1f\t", SetPoint_Angle[joint-1], Input);
-						printf("Error: %.1f\t", SetPoint_Angle[joint-1] - Input);
-						printf("time: %.1f\t", TimeStamp[i]);
+						//printf("Error: %.1f\t", SetPoint_Angle[joint-1] - Input);
+						//printf("time: %.1f\t", TimeStamp[i]);
 
-						BangBang(SetPoint_Angle[joint-1],Input,&muscle_pair_val[joint-1][0],&muscle_pair_val[joint-1][1]);
-						setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
-						setState(muscle_pair[joint-1][1],muscle_pair_val[joint-1][1]);
+						//BangBang(SetPoint_Angle[joint-1],Input,&muscle_pair_val[joint-1][0],&muscle_pair_val[joint-1][1]);
+						//setState(muscle_pair[joint-1][0],muscle_pair_val[joint-1][0]);
+						//setState(muscle_pair[joint-1][1],muscle_pair_val[joint-1][1]);
+						BangBang(SetPoint_Angle[joint-1],Input,&muscle[muscle_pair[joint-1][0]],&muscle[muscle_pair[joint-1][1]]);
+						setMuscle(muscle[muscle_pair[joint-1][0]]);
+						setMuscle(muscle[muscle_pair[joint-1][1]]);
+
+						printf("P1: %.2f\t P2: %.2f\t", muscle[muscle_pair[joint-1][0]].value, muscle[muscle_pair[joint-1][1]].value);
+						printf("dP1: %5.2f\t dP2: %5.2f\t", muscle[muscle_pair[joint-1][0]].dP, muscle[muscle_pair[joint-1][1]].dP);
+						printf("P1: %.2f\t P2: %.2f\t", MusclePressure[muscle_pair[joint-1][0]], MusclePressure[muscle_pair[joint-1][1]]);
+
 						usleep(50000);
-
-						printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[joint-1][0], muscle_pair_val[joint-1][1]);
 
 						// if logging
 						if ((logflag==1)||(logflag==2))
@@ -1431,7 +1449,7 @@ int main(int argc, char *argv[]) {
 			printf ("BangBang Controller for all joints\n");
 			printf ("ADD ABD TP FB are set to default\n");
 			//SetFrontalPlaneMuscle (PRES_DEF);
-
+			/*
 			int mode,lastmode;
 			int flag[NUM_OF_POT_SENSOR] = {0};
 
@@ -1474,51 +1492,6 @@ int main(int argc, char *argv[]) {
 
 					//loop
 					while(!_kbhit()){
-						// ====== One by One check. ========
-						// ====> stuck one 1 joints if not reached
-						/*
-						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-							if ((j==0)||(j==1)||(j==4)||(j==5)||(j==6)||(j==7)){
-								while(flag[j]<10){
-									read_sensor_all(i,SensorData,JointAngle,MusclePressure);
-
-									EndTimePoint = std::chrono::system_clock::now();
-									TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
-
-									// if logging
-									//if ((logflag==1)||(logflag==2))
-										//logflag = entrylog(i,SensorData,SetPoint_Angle,IMUData.calData);
-									i++;
-
-									printf("\rJoint %d. ", j+1);
-									printf("Act: %.1f\t SetPoint: %.1f\t ", JointAngle[j], SetPoint_Angle[j]);
-
-									flag[j] +=BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[j][0],&muscle_pair_val[j][1]);
-									setState(muscle_pair[j][0],muscle_pair_val[j][0]);
-									setState(muscle_pair[j][1],muscle_pair_val[j][1]);
-									usleep(50000);
-
-									printf("P1: %.2f\t P2: %.2f\t", muscle_pair_val[j][0], muscle_pair_val[j][1]);
-
-									if (flag[j]<0)
-										flag[j] = 0;
-								}
-								//reset flag
-								flag[j] = 0;
-							}
-							else{
-								read_sensor_all(i,SensorData,JointAngle,MusclePressure);
-								EndTimePoint = std::chrono::system_clock::now();
-								TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
-								i++;
-
-								printf("\rJoint %d: ", j+1);
-								printf("%.1f\t", JointAngle[j]);
-							}
-							printf("\n");
-						}
-						printf("\n");
-						*/
 
 						// ======= only once corrected ========
 						printf("\r");
@@ -1589,6 +1562,7 @@ int main(int argc, char *argv[]) {
 				else
 					break;
 			}
+			*/
 			Reset_Valve();
 			break;
 
