@@ -1116,7 +1116,7 @@ void OutputSaturation (double *MuscleVal){
 // Bang-Bang Controller Test
 int BangBang (double SetPoint, double RefPoint, MuscleDataArray *MusUp, MuscleDataArray *MusDown){
 
-	double error = 3; // error compensation
+	double error = 2; // error compensation
 	double dP;
 	int temp;
 	static double lastCh1, lastCh2;
@@ -1132,7 +1132,7 @@ int BangBang (double SetPoint, double RefPoint, MuscleDataArray *MusUp, MuscleDa
 	if (RefPoint < SetPoint - error){
 		//printf("Below SetPoint");
 		if (dP < MAX_PRESSURE){
-			dP=0.01;
+			dP=0.02;
 			//MusUp->dP =0.01;
 		}
 		// flag for stability
@@ -1141,7 +1141,7 @@ int BangBang (double SetPoint, double RefPoint, MuscleDataArray *MusUp, MuscleDa
 	else if (RefPoint > SetPoint + error){
 		//printf("Above SetPoint");
 		if (abs(dP) < MAX_PRESSURE){
-			dP=-0.01;
+			dP=-0.02;
 			//MusUp->dP = -0.01;
 		}
 		// flag for stability
@@ -1188,7 +1188,7 @@ int main(int argc, char *argv[]) {
 	for (i=0;i<NUM_OF_MUSCLE;i++){
 		muscle[i].channel = muscle_ch[i];
 		muscle[i].dP = 0;
-		muscle[i].value = PRES_DEF;
+		muscle[i].value = 0;
 	}
 
 
