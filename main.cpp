@@ -1182,6 +1182,31 @@ int BangBang (double SetPoint, double RefPoint, MuscleDataArray *MusUp, MuscleDa
 	return temp;
 }
 
+// P Controller Test
+int Controller (double SetPoint, double RefPoint, MuscleDataArray *MusUp, MuscleDataArray *MusDown){
+
+	double errorComp = 2; // error compensation
+	double error, dP;
+	double Pgain = 0.001;
+	int temp;
+
+	error = SetPoint - RefPoint;
+
+	// controller work outside error compensation band
+	if (abs(error) > errorComp){
+		dP = error * Pgain;
+	}
+
+	MusUp->dP = dP;
+	MusDown->dP = dP;
+
+	// Output Saturation
+	MusUp->value += MusUp->dP;
+	MusDown->value -= MusDown->dP;
+	OutputSaturation(&(MusUp->value));
+	OutputSaturation(&(MusDown->value));
+	return temp;
+}
 
 
 /**********************************************************************************/
@@ -1459,11 +1484,8 @@ int main(int argc, char *argv[]) {
 		}
 		case '6':{
 			printf ("BangBang Controller for all joints\n");
-			printf ("ADD ABD TP FB are set to default\n");
-			//SetFrontalPlaneMuscle (PRES_DEF);
 
 			int mode,lastmode;
-			int flag[NUM_OF_POT_SENSOR] = {0};
 
 
 			while(1){
@@ -1507,6 +1529,8 @@ int main(int argc, char *argv[]) {
 						printf("\r");
 						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
 							read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+							measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
 							EndTimePoint = std::chrono::system_clock::now();
 							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 							i++;
@@ -1539,7 +1563,10 @@ int main(int argc, char *argv[]) {
 								j=k;
 							else
 								j=k+2;
+
 							read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+							measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
 							EndTimePoint = std::chrono::system_clock::now();
 							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 							i++;
@@ -1591,9 +1618,143 @@ int main(int argc, char *argv[]) {
 
 			//Reset_Valve();
 			break;
-
 		}
 		case '7':{
+			printf ("Controller Test\n");
+
+			int mode,lastmode;
+
+			while(1){
+				printf("Set SetPoint for Angle\n");
+			  printf("0 : All ZERO\n");
+				printf("1 : Predefined 1\n");
+				printf("2 : Manually set\n");
+			  printf("99 : Exit\n");
+				std::cout<< "Mode : "; std::cin >> mode;
+				if (mode!=99){
+
+					// for logging
+					std::cout<< "Saved File (y/n)? : "; std::cin >> in;
+
+					StartTimePoint = std::chrono::system_clock::now();
+					i=0;
+
+					// mode for All ZERO
+					if (mode==0){
+						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+							SetPoint_Angle[j] = 0;
+						}
+					}
+					else if (mode==1){
+						SetPoint_Angle[0] = 5;
+						SetPoint_Angle[1] = 5;
+						SetPoint_Angle[4] = -10;
+						SetPoint_Angle[5] = -10;
+						SetPoint_Angle[6] = 5;
+						SetPoint_Angle[7] = 5;
+					}
+					else if (mode==2){
+						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+							std::cout<< "Joint #" << j+1 << " : ";
+							std::cin >> SetPoint_Angle[j];
+						}
+					}
+
+					//loop
+					while(!_kbhit()){
+						printf("\r");
+						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+							read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+							measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
+							EndTimePoint = std::chrono::system_clock::now();
+							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+							i++;
+
+							printf("Joint %2d. ", j+1);
+							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+
+							mus1= muscle_pair[j][0];
+							mus2= muscle_pair[j][1];
+
+							state= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+							setMuscle(muscle[mus1]);
+							setMuscle(muscle[mus2]);
+
+							if (state!=1)
+							{
+								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
+								printf("dP%2d: %5.2f\t dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
+								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
+							}
+
+
+							usleep(20000);
+							printf("\n");
+						}
+
+						// only for RF
+						for (k=0;k<4;k++){
+							if(k<2)
+								j=k;
+							else
+								j=k+2;
+							read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+							measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
+							EndTimePoint = std::chrono::system_clock::now();
+							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+							i++;
+
+							printf("Joint %2d. ", j+1);
+							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+
+							mus1= muscle_pair[k%2+10][0];
+							mus2= muscle_pair[k%2+10][1];
+
+							state= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+							setMuscle(muscle[mus1]);
+							setMuscle(muscle[mus2]);
+
+
+							if (state!=1)
+							{
+								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
+								printf("dP%2d: %5.2f\t dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
+								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
+							}
+
+							usleep(20000);
+							printf("\n");
+						}
+
+						printf("\n");
+
+						usleep(1000);
+					}
+
+					// if logging
+					//if ((logflag==1)||(logflag==2))
+						//logflag = endlog();
+
+					// full log version to minimize time
+					if (in=='y'){
+						std::cout<< "Message : "; std::cin >> msg;
+						fulllog(msg,SensorData,SetPoint_Angle,IMUData);
+					}
+					else
+						std::cout << "Not saving file\n";
+
+					printf("\n");
+				}
+				else
+					break;
+			}
+
+			//Reset_Valve();
+			break;
+		}
+		case '8':{
 			printf("Testing PID\n");
 			printf ("ADD ABD are set to default\n");
 			setState(ADD_R,PRES_DEF);
@@ -1671,7 +1832,7 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 
-		case '8':{
+		case '9':{
 			printf("PID Tuning\n");
 			printf ("ADD ABD are set to default\n");
 			setState(ADD_R,PRES_DEF);
@@ -1855,8 +2016,9 @@ int main(int argc, char *argv[]) {
 	  printf("4 : Testing all Muscle/Valves with preset pressure\n");
 	  printf("5 : Testing Bang-bang 1 joint\n");
 	  printf("6 : Bang-bang Controller\n");
-	  printf("7 : Testing PID Controller\n");
-	  printf("7 : PID Tuning\n");
+	  printf("7 : P Controller\n");
+	  printf("8 : Testing PID Controller\n");
+	  printf("9 : PID Tuning\n");
 	  printf("99 : Testing saving loading file\n");
 	  printf("0 : Reset Valve\n");
 	}
