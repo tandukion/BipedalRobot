@@ -205,7 +205,11 @@ int muscle_pair [muscle_pair_num][2] = {	{IL_R,GMAX_R}, {IL_L,GMAX_L},
 
 
 /* Potentiometer reference for zero degree */
-int Pot_straight [10] = {2128,2346,2305,3090,2336,2167,1446,1876,2118,2010};
+// motion capture
+//int Pot_straight [10] = {2128,2346,2305,3090,2336,2167,1446,1876,2118,2010};
+// recalibration
+//int Pot_straight [10] = {2056,2432,2255,3008,2464,2040,1360,1904,2167,1984};
+int Pot_straight [10] = {2000,2464,2232,3024,2544,2023,1344,1920,2143,1984};
 
 // Angle on same pressure p=0.3
 int Pot_Psame 		[10] = {	1820,	2665,	2383,	3034,	2641,	1817,	1573,	1759,	2199,	1931};
