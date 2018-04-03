@@ -197,7 +197,7 @@ int muscle_ch [NUM_OF_MUSCLE] = {IL_R_CH,GMAX_R_CH,VAS_R_CH,HAM_R_CH,TA_R_CH,SOL
 // +2 for extra biarticular muscle RF
 int muscle_pair [muscle_pair_num][2] = {	{IL_R,GMAX_R}, {IL_L,GMAX_L},
 																					{ABD_R,ADD_R}, {ABD_L,ADD_L},
-																					{VAS_R,HAM_R}, {VAS_L,HAM_L},
+																					{99,HAM_R}, {VAS_L,HAM_L},
 																					{TA_R,SOL_R}, {TA_L,SOL_L},
 																					{FB_R,TP_R}, {FB_L,TP_L},
 																					{RF_R,99}, {RF_L,99},			// for biarticular, can not use NULL=0
@@ -1209,7 +1209,7 @@ int main(int argc, char *argv[]) {
 	for (i=0;i<NUM_OF_MUSCLE;i++){
 		muscle[i].channel = muscle_ch[i];
 		muscle[i].dP = 0;
-		muscle[i].value = 0;
+		muscle[i].value = PRES_DEF;
 	}
 
 
@@ -1267,9 +1267,6 @@ int main(int argc, char *argv[]) {
 			std::cout<< "Data to display "; std::cin >> in2;
 
 			double valuetest;
-			//printf("Set Value on all Valve: "); scanf ("%lf",&valuetest);
-			//std::cout<< "Set Value on all Valve: "; std::cin >> valuetest;
-			//SetAllValve(valuetest);
 
 			if (in2=='1'){
 				printf("Sample \t");
@@ -1278,10 +1275,12 @@ int main(int argc, char *argv[]) {
 			}
 			else if (in2=='2')
 				printf("Sample \tPot1 \tPot2 \tPot3 \tPot4 \tPot5 \tPot6 \tPot7 \tPot8 \tPot9 \tPot10 \n");
-			else if (in2=='3')
+			else if (in2=='3'){
+				std::cout<< "Set Value on all Valve: "; std::cin >> valuetest;
+				SetAllValve(valuetest);
 				printf("Sample \tR00 \tR01 \tR02 \tR03 \tR04 \tR05 \tR06 \tR07 \tR08 \tR09 \tR10 \tL00 \tL01 \tL02 \tL03 \tL04 \tL05 \tL06 \tL07 \tL08 \tL09 \tL10 \n");
+			}
 
-	    // config_IMU(&device,&mtPort, outputMode, outputSettings);
 			laps1 = clock();
 			StartTimePoint = std::chrono::system_clock::now();
 
@@ -1513,8 +1512,8 @@ int main(int argc, char *argv[]) {
 							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 							i++;
 
-							printf("Joint %2d. ", j+1);
-							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+							//printf("Joint %2d. ", j+1);
+							//printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
 
 							//BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[j][0],&muscle_pair_val[j][1]);
 							//setState(muscle_pair[j][0],muscle_pair_val[j][0]);
@@ -1527,21 +1526,20 @@ int main(int argc, char *argv[]) {
 							mus1= muscle_pair[j][0];
 							mus2= muscle_pair[j][1];
 
-							state= BangBang(SetPoint_Angle[j],JointAngle[j],&muscle[muscle_pair[j][0]],&muscle[muscle_pair[j][1]]);
-							setMuscle(muscle[muscle_pair[j][0]]);
-							setMuscle(muscle[muscle_pair[j][1]]);
-
-
+							state= BangBang(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+							setMuscle(muscle[mus1]);
+							setMuscle(muscle[mus2]);
+							/*
 							if (state!=1)
 							{
-								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, muscle[muscle_pair[j][0]].value, mus2,muscle[muscle_pair[j][1]].value);
-								printf("dP%2d: %5.2f\t dP%2d: %5.2f\t", mus1,muscle[muscle_pair[j][0]].dP, mus2,muscle[muscle_pair[j][1]].dP);
-								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, MusclePressure[muscle_pair[j][0]], mus2,MusclePressure[muscle_pair[j][1]]);
+								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
+								printf("dP%2d: %5.2f\t dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
+								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
 							}
-
+							*/
 
 							usleep(20000);
-							printf("\n");
+							//printf("\n");
 
 							//printf("%.2f\t", MusclePressure[mus1]);
 							//printf("%.2f\t", MusclePressure[mus2]);
@@ -1559,8 +1557,8 @@ int main(int argc, char *argv[]) {
 							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 							i++;
 
-							printf("Joint %2d. ", j+1);
-							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+							//printf("Joint %2d. ", j+1);
+							//printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
 
 							//BangBang(SetPoint_Angle[j],JointAngle[j],&muscle_pair_val[k%2+10][0],&muscle_pair_val[k%2+10][1]);
 							//setState(muscle_pair[k%2+10][0],muscle_pair_val[k%2+10][0]);
@@ -1573,22 +1571,24 @@ int main(int argc, char *argv[]) {
 							mus1= muscle_pair[k%2+10][0];
 							mus2= muscle_pair[k%2+10][1];
 
-							state= BangBang(SetPoint_Angle[j],JointAngle[j],&muscle[muscle_pair[k%2+10][0]],&muscle[muscle_pair[k%2+10][1]]);
-							setMuscle(muscle[muscle_pair[k%2+10][0]]);
-							setMuscle(muscle[muscle_pair[k%2+10][1]]);
+							state= BangBang(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+							setMuscle(muscle[mus1]);
+							setMuscle(muscle[mus2]);
 
-
+							/*
 							if (state!=1)
 							{
 								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
 								printf("dP%2d: %5.2f\t dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
 								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
 							}
-
+							*/
 							usleep(20000);
-							printf("\n");
+							//printf("\n");
 							//printf("%.2f\t", MusclePressure[mus1]);
 						}
+
+						printf("val%d: %.2f \tP: %.2f\t", VAS_R, muscle[VAS_R].value,MusclePressure[VAS_R]);
 
 
 						printf("\n");
