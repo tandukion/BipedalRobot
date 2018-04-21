@@ -164,14 +164,20 @@
 #define PRES_DEF 0.3
 
 #define MAX_SAMPLE_NUM 100000
+#define SAMPLE_NUM 20000
 
 
 /*************************************************************/
 /**                   GLOBAL VARIABLES                      **/
 /*************************************************************/
 
-long SampleNum = 20000;
+long SampleNum = SAMPLE_NUM; //20000;
 unsigned long SensorValue[NUM_ADC][NUM_ADC_PORT];
+unsigned long SensorData[SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
+double JointAngle[NUM_OF_POT_SENSOR];
+double SetPoint_Angle[NUM_OF_POT_SENSOR] ={0};
+double MusclePressure[NUM_DAC*NUM_OF_CHANNELS];
+
 
 /* for sampling time */
 std::chrono::system_clock::time_point StartTimePoint, EndTimePoint;
@@ -209,8 +215,9 @@ int muscle_pair [muscle_pair_num][2] = {	{IL_R,GMAX_R}, {IL_L,GMAX_L},
 //int Pot_straight [10] = {2128,2346,2305,3090,2336,2167,1446,1876,2118,2010};
 // recalibration
 //int Pot_straight [10] = {2056,2432,2255,3008,2464,2040,1360,1904,2167,1984};
-int Pot_straight [10] = {2000,2464,2232,3024,2544,2023,1344,1920,2143,1984};			// working for 66s in mode 7
-//int Pot_straight [10] = {2000,2514,2132,3000,2544,2023,1344,1920,2167,2030};			// manual calibration
+//int Pot_straight [10] = {2000,2464,2232,3024,2544,2023,1344,1920,2143,1984};			// working for 66s in mode 7
+int Pot_straight [10] = {2000,2464,2132,2970,2544,2023,1344,1920,2143,1984};			// recalibrate
+//int Pot_straight [10] = {2000,2464,2132,2970,2544,2023,1414,1890,2117,2080};			// manual calibration
 
 
 // Angle on same pressure p=0.3
@@ -228,10 +235,8 @@ struct IMUDataArray{
 IMUDataArray IMUData[MAX_SAMPLE_NUM];
 DeviceClass device;
 XsPortInfo mtPort;
-//XsQuaternion quaternion;
-//XsEuler euler;
-//XsCalibratedData calData;
-//unsigned int sample_time;
+XsOutputMode outputMode = DEFAULT_OUTPUT_MODE; //XOM_Calibrated;
+XsOutputSettings outputSettings = DEFAULT_OUTPUT_SETTINGS; //XOS_CalibratedMode_All;
 
 /* Xsens IMU Configuration */
 char portName[20] = "/dev/ttyUSB0";
@@ -579,15 +584,15 @@ void init_IMU(DeviceClass *device, XsPortInfo *mtPort, char *portName, int baudR
 void config_IMU(DeviceClass *device, XsPortInfo *mtPort, XsOutputMode outputMode, XsOutputSettings outputSettings){
 
   // Put the device in configuration mode
-  std::cout << "Putting device into configuration mode..." << std::endl;
+  //std::cout << "Putting device into configuration mode..." << std::endl;
   device->gotoConfig();
 
   // Request the device Id to check the device type
   mtPort->setDeviceId(device->getDeviceId());
 
   // Print information about detected MTi / MTx / MTmk4 device
-  std::cout << "Found a device with id: " << mtPort->deviceId().toString().toStdString() << " @ port: " << mtPort->portName().toStdString() << ", baudrate: " << mtPort->baudrate() << std::endl;
-  std::cout << "Device: " << device->getProductCode().toStdString() << " opened." << std::endl;
+  //std::cout << "Found a device with id: " << mtPort->deviceId().toString().toStdString() << " @ port: " << mtPort->portName().toStdString() << ", baudrate: " << mtPort->baudrate() << std::endl;
+  //std::cout << "Device: " << device->getProductCode().toStdString() << " opened." << std::endl;
 
   // Configure the device. Note the differences between MTix and MTmk4
   //std::cout << "Configuring the device..." << std::endl;
@@ -957,10 +962,10 @@ int endlog() {
 
 /* */
 void fulllog(const char* message, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT],
-						 double *SetPoint_Angle, IMUDataArray *IMUData){
+						 double *SetPoint_Angle, IMUDataArray *IMUData, int DataMark){
   int i;
   startlog(message);
-  for (i=0;i<SampleNum;i++){
+  for (i=0;i<DataMark;i++){
     entrylog (i,SensorVal,SetPoint_Angle,IMUData);
   }
   endlog();
@@ -1015,13 +1020,20 @@ void loadTunings(double *Kp, double *Ki, double *Kd){
 /**                    TESTING FUNCTION                         **/
 /*************************************************************/
 
-void Reset_Valve (){
+void ResetAllValve (){
 	int i;
 	for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
 		if (i%16 < (NUM_OF_MUSCLE/2)){
 			setState(i,0.0);
 			//printf("Valve #%d off\n",i);
 		}
+	}
+}
+template<typename T, size_t N>
+void ResetValve (T (&mus)[N]){
+	int i;
+	for (i=0;i< N ;i++){
+		setState(mus[i],0.0);
 	}
 }
 void SetAllValve (double value){
@@ -1032,16 +1044,17 @@ void SetAllValve (double value){
 		}
 	}
 }
+template<typename T, size_t N>
+void SetValve (T (&mus)[N], double value){
+	int i;
+	for (i=0;i< N ;i++){
+		setState(mus[i],value);
+	}
+}
 
 void SetFrontalPlaneMuscle (double value){
-	setState(ADD_R,value);
-	setState(ADD_L,value);
-	setState(ABD_R,value);
-	setState(ABD_L,value);
-	setState(TP_R,value);
-	setState(TP_L,value);
-	setState(FB_R,value);
-	setState(FB_L,value);
+	int mus[] = {ADD_R_CH,ADD_L_CH,ABD_R_CH,ABD_L_CH,TP_R_CH,TP_L_CH,FB_R_CH,FB_L_CH};
+	SetValve(mus,value);
 }
 
 /*===== Running test to print all the Sensor Data ======*/
@@ -1052,8 +1065,6 @@ void test_sensor (int SampleNum){
 	double Angle[NUM_OF_POT_SENSOR];
 	double Pressure[NUM_DAC*NUM_OF_CHANNELS];
 
-  //startlog("test_sensor");
-
   for(index=0;index<SampleNum;index++){
     read_sensor_all(index,Value,Angle,Pressure);
     /**/
@@ -1063,13 +1074,7 @@ void test_sensor (int SampleNum){
       }
     }
     printf ("-------------------\n");
-    /**/
-    // logging into file
-    //entrylog(index,Value);
   }
-  //endlog();
-
-  //return (Value);
 }
 
 /*======  Test one Muscle with Specific Pressure =======*/
@@ -1102,20 +1107,10 @@ void test_valve (){
 
 			while(!_kbhit()){
 	      read_sensor_all(i,Value,Angle,Pressure);
-				//for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-				//	printf("%.1f\t", Angle[j]);
-				//}
 
 				for (j = 0; j<valve_count;j++){
 					printf("Valve %d: %.3f\t", valve_num[j], Pressure[valve_num[j]]);
 				}
-				/*
-				for (j = 0; j<valve_count;j++){
-					if (valve_num[j]< (NUM_OF_MUSCLE/2))
-						printf("Right Valve %d: %.3f\t", valve_num[j], Pressure[valve_num[j]]);
-					else
-						printf("Left Valve %d: %.3f\t", valve_num[j], Pressure[valve_num[j]- NUM_OF_CHANNELS + (NUM_OF_MUSCLE/2)]);
-				*/
 				printf("\n");
 				i++;
 			}
@@ -1173,9 +1168,6 @@ int BangBang (double SetPoint, double RefPoint, MuscleDataArray *MusUp, MuscleDa
 		temp=1;
 	}
 
-	//MusUp->dP = dP;
-	//MusDown->dP = dP;
-
 	// Output Saturation
 	MusUp->value += MusUp->dP;
 	MusDown->value -= MusDown->dP;
@@ -1197,7 +1189,10 @@ int Controller (double SetPoint, double RefPoint, MuscleDataArray *MusUp, Muscle
 	// controller work outside error compensation band
 	if (abs(error) > errorComp){
 		dP = error * Pgain;
+		temp = 0;
 	}
+	else
+		temp = 1;  // return 1 for compensated stability
 
 	MusUp->dP = dP;
 	MusDown->dP = dP;
@@ -1207,6 +1202,163 @@ int Controller (double SetPoint, double RefPoint, MuscleDataArray *MusUp, Muscle
 	MusDown->value -= MusDown->dP;
 	OutputSaturation(&(MusUp->value));
 	OutputSaturation(&(MusDown->value));
+	return temp;
+}
+
+//template<typename T, size_t N>
+//int JointAngleControl (T (&jointlist)[N],unsigned long *index){
+int JointAngleControl (int *jointlist, int N,unsigned long *index){
+	int temp,j,k,l,mus1,mus2,state[N],statecount=0,joint;
+	unsigned long i;
+	i = *index;
+
+	for (l=0;l<N;l++){
+		joint = jointlist[l];
+		j = joint-1;
+
+		//while (!_kbhit())
+		{
+			read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+			measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
+			EndTimePoint = std::chrono::system_clock::now();
+			TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+			i++;
+
+			printf("Joint %2d. ", j+1);
+			printf("Act: %5.1f  Ref: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+
+			mus1= muscle_pair[j][0];
+			mus2= muscle_pair[j][1];
+
+			state[l]= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+			setMuscle(muscle[mus1]);
+			setMuscle(muscle[mus2]);
+
+			if (state[l]!=1)
+			{
+				printf("P%2d: %.2f  P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
+				//printf("dP%2d: %5.2f  dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
+				//printf("P%2d: %.2f  P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
+			}
+			//usleep(20000);
+
+
+			// case for RF, works for joint 1,2,5,6
+			if ((joint==1)||(joint==2)||(joint==5)||(joint==6)){
+				k=j;
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
+
+				mus1= muscle_pair[k%2+10][0];
+				mus2= muscle_pair[k%2+10][1];
+				state[l]= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+				setMuscle(muscle[mus1]);
+				setMuscle(muscle[mus2]);
+
+				if (state[l]!=1)
+				{
+					printf("P%2d: %.2f  P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
+					//printf("dP%2d: %5.2f  dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
+					//printf("P%2d: %.2f  P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
+				}
+				//usleep(20000);
+			}
+
+			statecount += state[l];
+			printf("\n");
+		}
+	}
+	*index = i;
+	return statecount;
+}
+
+int AllAngleControl (unsigned long *index){
+	int temp=0, j,k,mus1,mus2,state[NUM_OF_POT_SENSOR],statecount=0;
+	unsigned long i;
+
+	i = *index;
+
+	//while(!_kbhit())
+	{
+		for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+			read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+			measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
+			EndTimePoint = std::chrono::system_clock::now();
+			TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+			i++;
+
+			printf("Joint %2d. ", j+1);
+			printf("Act: %5.1f  Ref: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+
+			mus1= muscle_pair[j][0];
+			mus2= muscle_pair[j][1];
+
+			state[j]= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+			setMuscle(muscle[mus1]);
+			setMuscle(muscle[mus2]);
+
+			if (state[j]!=1)
+			{
+				printf("P%2d: %.2f  P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
+				printf("dP%2d: %5.2f  dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
+				printf("P%2d: %.2f  P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
+			}
+			//usleep(5000);
+			printf("\n");
+
+			statecount +=state[j];
+		}
+
+		// only for RF
+		for (k=0;k<4;k++){
+			if(k<2)
+				j=k;
+			else
+				j=k+2;
+			read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+			measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
+			EndTimePoint = std::chrono::system_clock::now();
+			TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+			i++;
+
+			printf("Joint %2d. ", j+1);
+			printf("Act: %5.1f  Ref: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+
+			mus1= muscle_pair[k%2+10][0];
+			mus2= muscle_pair[k%2+10][1];
+
+			state[j]= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+			setMuscle(muscle[mus1]);
+			setMuscle(muscle[mus2]);
+
+
+			if (state[j]!=1)
+			{
+				printf("P%2d: %.2f  P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
+				printf("dP%2d: %5.2f  dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
+				printf("P%2d: %.2f  P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
+			}
+			//usleep(5000);
+			printf("\n");
+
+			statecount +=state[j];
+		}
+		printf("\n");
+	}
+	*index = i;
+
+	if (statecount>8)
+		temp = 1;
+	else
+		temp = 0;
+
 	return temp;
 }
 
@@ -1225,6 +1377,7 @@ int main(int argc, char *argv[]) {
 
 	clock_t laps1,laps2;
 	int joint, lastjoint=0;
+	int jointnum, *jointlist;
 	char in,in2,msg[20];
 	int logflag=0;
 	int temp,state;
@@ -1242,12 +1395,10 @@ int main(int argc, char *argv[]) {
 
 	/* Variable for ADC Board Data */
 	// ==============>>>>>>.  Problem here for a lot of Data
-	unsigned long SensorData[SampleNum][NUM_ADC][NUM_ADC_PORT];
-
-	double JointAngle[NUM_OF_POT_SENSOR];
-	double SetPoint_Angle[NUM_OF_POT_SENSOR] ={0};
-
-	double MusclePressure[NUM_DAC*NUM_OF_CHANNELS];
+	//unsigned long SensorData[SampleNum][NUM_ADC][NUM_ADC_PORT];
+	//double JointAngle[NUM_OF_POT_SENSOR];
+	//double SetPoint_Angle[NUM_OF_POT_SENSOR] ={0};
+	//double MusclePressure[NUM_DAC*NUM_OF_CHANNELS];
 
 	// muscle pressure val init
 	double muscle_pair_val [muscle_pair_num][2];
@@ -1258,10 +1409,8 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	init_IMU(&device,&mtPort,PORTNAME,BAUDRATE);
 	// Config IMU with default settings
-	XsOutputMode outputMode = DEFAULT_OUTPUT_MODE; //XOM_Calibrated;
-	XsOutputSettings outputSettings = DEFAULT_OUTPUT_SETTINGS; //XOS_CalibratedMode_All;
+	init_IMU(&device,&mtPort,PORTNAME,BAUDRATE);
 	config_IMU(&device,&mtPort, outputMode, outputSettings);
 
 
@@ -1280,7 +1429,7 @@ int main(int argc, char *argv[]) {
 
 
 	// Valve initialization
-	//Reset_Valve();
+	//ResetAllValve();
 	usleep(1000);
 
 	if (argc==2){
@@ -1359,7 +1508,7 @@ int main(int argc, char *argv[]) {
 	    }
 			printf ("\n");
 	    printf ("-------------------\n");
-	    // fulllog("adc_acc_gyr",SensorData,SetPoint_Angle,IMUData.calData);
+	    // fulllog("adc_acc_gyr",SensorData,SetPoint_Angle,IMUData.calData,i);
 
 			std::cout<< "Save data (y/n)? "; std::cin >> in;
 			//printf ("Save data (y/n)? ");
@@ -1367,7 +1516,7 @@ int main(int argc, char *argv[]) {
 			if (in=='y'){
 				printf ("filename message: ");
 		    scanf ("%s",&msg);
-				fulllog(msg,SensorData,SetPoint_Angle,IMUData);
+				fulllog(msg,SensorData,SetPoint_Angle,IMUData,i);
 			}
 			printf("%c, %s\n",in, msg);
 
@@ -1379,7 +1528,7 @@ int main(int argc, char *argv[]) {
 	  case '3':{
 	    printf("Testing Valve\n");
 	    test_valve();
-			Reset_Valve();
+			ResetAllValve();
 	    break;
 		}
 	  case '4':{
@@ -1475,7 +1624,7 @@ int main(int argc, char *argv[]) {
 				else
 					break;
 			}
-			Reset_Valve();
+			ResetAllValve();
 			break;
 		}
 		case '6':{
@@ -1601,7 +1750,7 @@ int main(int argc, char *argv[]) {
 					// full log version to minimize time
 					if (in=='y'){
 						std::cout<< "Message : "; std::cin >> msg;
-						fulllog(msg,SensorData,SetPoint_Angle,IMUData);
+						fulllog(msg,SensorData,SetPoint_Angle,IMUData,i);
 					}
 					else
 						std::cout << "Not saving file\n";
@@ -1612,10 +1761,45 @@ int main(int argc, char *argv[]) {
 					break;
 			}
 
-			//Reset_Valve();
+			//ResetAllValve();
 			break;
 		}
 		case '7':{
+			printf("Testing Joint Control\n");
+			while(1){
+				std::cout<< "Num of Joints : "; std::cin >> jointnum;
+				if (jointnum>0){
+					jointlist = new int[jointnum];
+					for (j=0;j<jointnum;j++){
+						std::cout<< "Joint #" << j+1 << " No: "; std::cin >> joint;
+						jointlist[j] = joint;
+						std::cout<< "SetPoint : "; std::cin >> SetPoint_Angle[joint-1];
+					}
+
+					StartTimePoint = std::chrono::system_clock::now();
+					i=0;
+
+					while (!_kbhit()){
+						JointAngleControl(jointlist,jointnum,&i);
+					}
+
+					// for logging
+					std::cout<< "Saved File (y/n)? : "; std::cin >> in;
+					if (in=='y'){
+						std::cout<< "Message : "; std::cin >> msg;
+						fulllog(msg,SensorData,SetPoint_Angle,IMUData,i);
+					}
+					else
+						std::cout << "Not saving file\n";
+
+					printf("\n");
+				}
+				else
+					break;
+			}
+			break;
+		}
+		case '8':{
 			printf ("Controller Test\n");
 
 			int mode,lastmode;
@@ -1657,76 +1841,8 @@ int main(int argc, char *argv[]) {
 					}
 
 					//loop
-					while(!_kbhit()){
-						printf("\r");
-						for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-							read_sensor_all(i,SensorData,JointAngle,MusclePressure);
-							measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
-
-							EndTimePoint = std::chrono::system_clock::now();
-							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
-							i++;
-
-							printf("Joint %2d. ", j+1);
-							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
-
-							mus1= muscle_pair[j][0];
-							mus2= muscle_pair[j][1];
-
-							state= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
-							setMuscle(muscle[mus1]);
-							setMuscle(muscle[mus2]);
-
-							if (state!=1)
-							{
-								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
-								printf("dP%2d: %5.2f\t dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
-								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
-							}
-
-
-							usleep(20000);
-							printf("\n");
-						}
-
-						// only for RF
-						for (k=0;k<4;k++){
-							if(k<2)
-								j=k;
-							else
-								j=k+2;
-							read_sensor_all(i,SensorData,JointAngle,MusclePressure);
-							measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
-
-							EndTimePoint = std::chrono::system_clock::now();
-							TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
-							i++;
-
-							printf("Joint %2d. ", j+1);
-							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
-
-							mus1= muscle_pair[k%2+10][0];
-							mus2= muscle_pair[k%2+10][1];
-
-							state= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
-							setMuscle(muscle[mus1]);
-							setMuscle(muscle[mus2]);
-
-
-							if (state!=1)
-							{
-								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
-								printf("dP%2d: %5.2f\t dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
-								printf("P%2d: %.2f\t P%2d: %.2f\t", mus1, MusclePressure[mus1], mus2,MusclePressure[mus2]);
-							}
-
-							usleep(20000);
-							printf("\n");
-						}
-
-						printf("\n");
-
-						usleep(1000);
+					while (!_kbhit()){
+						AllAngleControl(&i);
 					}
 
 					// if logging
@@ -1736,7 +1852,7 @@ int main(int argc, char *argv[]) {
 					// full log version to minimize time
 					if (in=='y'){
 						std::cout<< "Message : "; std::cin >> msg;
-						fulllog(msg,SensorData,SetPoint_Angle,IMUData);
+						fulllog(msg,SensorData,SetPoint_Angle,IMUData,i);
 					}
 					else
 						std::cout << "Not saving file\n";
@@ -1747,15 +1863,61 @@ int main(int argc, char *argv[]) {
 					break;
 			}
 
-			//Reset_Valve();
+			//ResetAllValve();
 			break;
 		}
-		case '8':{
-			usleep(2000000);
+		case '9':{
+			//usleep(2000000);
+			int sw = 0;
+			int sw_angle = -25;
+			state = 0;
+
 			int active1 [6] = {GMAX_R, GMAX_L, VAS_R, VAS_L, RF_R, RF_L};
 			int counter1[4] = {IL_R, IL_L, HAM_R, HAM_L};
 			int active2 [6] = {SOL_R, SOL_L, TP_R, TP_L, FB_R, FB_L};
 
+			// initial posture
+			for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+				SetPoint_Angle[j] = 0;
+			}
+
+			StartTimePoint = std::chrono::system_clock::now();
+			i=0;
+			while (!_kbhit()){
+				AllAngleControl(&i);
+			}
+
+
+			// incline trunk forward, reducing Pitch
+			SetPoint_Angle[0] = 25;
+			SetPoint_Angle[1] = 25;
+			jointnum=2;
+			jointlist = new int[jointnum];
+			jointlist[0] = 1; jointlist[1] = 2;
+			for(j=0;j<5;j++)				// allowing only some time to incline trunk forward
+			{
+				state=JointAngleControl(jointlist,jointnum,&i);
+			}
+
+
+			//releasing muscle tension
+			int mus[]= {IL_L_CH,IL_R_CH,GMAX_L_CH,GMAX_R_CH,VAS_L_CH,VAS_R_CH,HAM_L_CH,HAM_R_CH,
+									TA_L_CH,TA_R_CH,SOL_L_CH,SOL_R_CH,RF_L_CH,RF_R_CH};
+			ResetValve(mus);
+
+			// activation switch based on joint angle
+			while (!sw){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
+				sw = ((JointAngle[4] < sw_angle) && (JointAngle[5] < sw_angle));
+
+				printf ("\r");
+				printf("Joint5: %.2f\t Joint6: %.2f\t", JointAngle[4], JointAngle[5]);
+			}
+
+			// Jumping activation
+			std::cout << "JUMP!\n";
 			for (i=0; i<6; i++){
 				muscle[active1[i]].value = MAX_PRESSURE;
 				muscle[active2[i]].value = MAX_PRESSURE;
@@ -1772,7 +1934,17 @@ int main(int argc, char *argv[]) {
 			for (i=0; i<6; i++)
 				setMuscle(muscle[active2[i]]);
 
-			//Reset_Valve();
+
+			std::cout<< "Save data (y/n)? "; std::cin >> in;
+			//printf ("Save data (y/n)? ");
+	    //scanf ("%c",&in);
+			if (in=='y'){
+				printf ("filename message: ");
+		    scanf ("%s",&msg);
+				fulllog(msg,SensorData,SetPoint_Angle,IMUData,i);
+			}
+
+			//ResetAllValve();
 			break;
 		}
 		case '99':{
@@ -1790,7 +1962,8 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 		case '0':{
-			Reset_Valve();
+			printf("Reseting All Valves\n");
+			ResetAllValve();
 			break;
 		}
 	  }
@@ -1803,8 +1976,9 @@ int main(int argc, char *argv[]) {
 	  printf("4 : Calibrate Potentiometer\n");
 	  printf("5 : Testing Bang-bang 1 joint\n");
 	  printf("6 : Bang-bang Controller\n");
-	  printf("7 : P Controller\n");
-	  printf("8 : Jump!\n");
+	  printf("7 : Testing 1 Joint Control\n");
+	  printf("8 : P Controller\n");
+	  printf("9 : Jump!\n");
 	  printf("99 : Testing saving loading file\n");
 	  printf("0 : Reset Valve\n");
 	}
