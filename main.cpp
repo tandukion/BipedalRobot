@@ -1188,7 +1188,7 @@ int Controller (double SetPoint, double RefPoint, MuscleDataArray *MusUp, Muscle
 
 	// controller work outside error compensation band
 	if (abs(error) > errorComp){
-		dP = error * Pgain;
+		dP = error * Pgain;				// P controller
 		temp = 0;
 	}
 	else
@@ -1245,6 +1245,7 @@ int JointAngleControl (int *jointlist, int N,unsigned long *index){
 
 
 			// case for RF, works for joint 1,2,5,6
+			/*
 			if ((joint==1)||(joint==2)||(joint==5)||(joint==6)){
 				k=j;
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
@@ -1268,6 +1269,7 @@ int JointAngleControl (int *jointlist, int N,unsigned long *index){
 				}
 				//usleep(20000);
 			}
+			*/
 
 			statecount += state[l];
 			printf("\n");
@@ -1362,6 +1364,78 @@ int AllAngleControl (unsigned long *index){
 	return temp;
 }
 
+int AllAngleControl2 (unsigned long *index){
+	int temp=0, j,k,mus1,mus2,state[NUM_OF_POT_SENSOR],statecount=0;
+	unsigned long i;
+
+	i = *index;
+
+	//while(!_kbhit())
+	{
+		read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+		measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
+		EndTimePoint = std::chrono::system_clock::now();
+		TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+		i++;
+
+		for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+			mus1= muscle_pair[j][0];
+			mus2= muscle_pair[j][1];
+
+			state[j]= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+			statecount +=state[j];
+		}
+
+		for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+			mus1= muscle_pair[j][0];
+			mus2= muscle_pair[j][1];
+
+			setMuscle(muscle[mus1]);
+			setMuscle(muscle[mus2]);
+		}
+
+		// only for RF
+		read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+		measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+
+		EndTimePoint = std::chrono::system_clock::now();
+		TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+		i++;
+
+		for (k=0;k<4;k++){
+			if(k<2)
+				j=k;
+			else
+				j=k+2;
+
+			mus1= muscle_pair[k%2+10][0];
+			mus2= muscle_pair[k%2+10][1];
+			state[j]= Controller(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+			statecount +=state[j];
+		}
+
+		for (k=0;k<4;k++){
+			if(k<2)
+				j=k;
+			else
+				j=k+2;
+
+			mus1= muscle_pair[k%2+10][0];
+			mus2= muscle_pair[k%2+10][1];
+			setMuscle(muscle[mus1]);
+			setMuscle(muscle[mus2]);
+		}
+	}
+	*index = i;
+
+	if (statecount>8)
+		temp = 1;
+	else
+		temp = 0;
+
+	return temp;
+}
 
 /**********************************************************************************/
 
@@ -1883,6 +1957,7 @@ int main(int argc, char *argv[]) {
 
 			StartTimePoint = std::chrono::system_clock::now();
 			i=0;
+			printf("Pot1 \tPot2 \tPot3 \tPot4 \tPot5 \tPot6 \tPot7 \tPot8 \tPot9 \tPot10 \n");
 			while (!_kbhit()){
 				AllAngleControl(&i);
 			}
@@ -1895,8 +1970,10 @@ int main(int argc, char *argv[]) {
 			jointlist = new int[jointnum];
 			jointlist[0] = 1; jointlist[1] = 2;
 			for(j=0;j<5;j++)				// allowing only some time to incline trunk forward
+			//while (state!=jointnum)
 			{
-				state=JointAngleControl(jointlist,jointnum,&i);
+				//state=JointAngleControl(jointlist,jointnum,&i);
+				AllAngleControl(&i);
 			}
 
 
