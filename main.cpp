@@ -111,28 +111,28 @@
 /* INDEX PIN for Valve */
 #define NUM_OF_MUSCLE 22	// Number of muscle/valve
 
-#define IL_R		0
+#define IL_R	0
 #define GMAX_R	1
-#define VAS_R		2
-#define HAM_R		3
-#define TA_R 		4
+#define VAS_R	2
+#define HAM_R	3
+#define TA_R 	4
 #define SOL_R 	5
 #define ADD_R 	6
 #define ABD_R 	7
-#define TP_R		8
-#define FB_R		9
-#define RF_R		10
-#define IL_L		11
+#define TP_R	8
+#define FB_R	9
+#define RF_R	10
+#define IL_L	11
 #define GMAX_L	12
-#define VAS_L		13
-#define HAM_L		14
-#define TA_L 		15
+#define VAS_L	13
+#define HAM_L	14
+#define TA_L 	15
 #define SOL_L 	16
 #define ADD_L 	17
 #define ABD_L 	18
-#define TP_L		19
-#define FB_L		20
-#define RF_L		21
+#define TP_L	19
+#define FB_L	20
+#define RF_L	21
 
 #define IL_R_CH			0
 #define GMAX_R_CH		1
@@ -198,18 +198,18 @@ int muscle_sensor [NUM_OF_MUSCLE] = {PIN_PRES_1,PIN_PRES_2};
 
 /* Table for muscle valve channel */
 int muscle_ch [NUM_OF_MUSCLE] = {IL_R_CH,GMAX_R_CH,VAS_R_CH,HAM_R_CH,TA_R_CH,SOL_R_CH,ADD_R_CH,
-																	ABD_R_CH,TP_R_CH,FB_R_CH,RF_R_CH,
-																 IL_L_CH,GMAX_L_CH,VAS_L_CH,HAM_L_CH,TA_L_CH,SOL_L_CH,ADD_L_CH,
-															 		ABD_L_CH,TP_L_CH,FB_L_CH,RF_L_CH};
+				 ABD_R_CH,TP_R_CH,FB_R_CH,RF_R_CH,
+				 IL_L_CH,GMAX_L_CH,VAS_L_CH,HAM_L_CH,TA_L_CH,SOL_L_CH,ADD_L_CH,
+				 ABD_L_CH,TP_L_CH,FB_L_CH,RF_L_CH};
 
 // +2 for extra biarticular muscle RF
-int muscle_pair [muscle_pair_num][2] = {	{IL_R,GMAX_R}, {IL_L,GMAX_L},
-																					{ABD_R,ADD_R}, {ABD_L,ADD_L},
-																					{VAS_R,HAM_R}, {VAS_L,HAM_L},
-																					{TA_R,SOL_R}, {TA_L,SOL_L},
-																					{FB_R,TP_R}, {FB_L,TP_L},
-																					{RF_R,HAM_R}, {RF_L,HAM_L},			// for biarticular, can not use NULL=0
-																				};
+int muscle_pair [muscle_pair_num][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
+					{ABD_R,ADD_R}, {ABD_L,ADD_L},
+					{VAS_R,HAM_R}, {VAS_L,HAM_L},
+					{TA_R,SOL_R}, {TA_L,SOL_L},
+					{FB_R,TP_R}, {FB_L,TP_L},
+					{RF_R,HAM_R}, {RF_L,HAM_L},// for biarticular,can't use NULL=0
+};
 
 
 /* Potentiometer reference for zero degree */
@@ -223,8 +223,8 @@ int Pot_straight [10] = {2000,2464,2132,2970,2544,2023,1344,1920,2143,1984};			/
 
 
 // Angle on same pressure p=0.3
-int Pot_Psame 		[10] = {	1820,	2665,	2383,	3034,	2641,	1817,	1573,	1759,	2199,	1931};
-double Angle_Psame [10] = {	27.1,	28.0,	2.3,	4.9, -26.8,-30.8,-11.2,-10.3, -7.1,	-6.9};
+int Pot_Psame 	[10] = {1820,2665,2383,3034,2641,1817,1573,1759,2199,1931};
+double Angle_Psame [10] = {27.1,28.0,2.3,4.9,-26.8,-30.8,-11.2,-10.3, -7.1,-6.9};
 
 /* Variable for IMU Data */
 struct IMUDataArray{
@@ -251,30 +251,30 @@ PIN analog_pin[NUM_OF_AINS];
 FILE* fd[AIO_NUM] = {};
 void initAIO(void)
 {
-	int i;
-	for (i = 0; i < AIO_NUM; i++) {
-		char filename[64];
-		sprintf(filename, "/sys/devices/ocp.3/helper.12/AIN%d", i);
-		if ((fd[i] = fopen(filename, "r")) == NULL) {
-			perror("cannot open:");
-			exit(1);
-		}
-	}
+  int i;
+  for (i = 0; i < AIO_NUM; i++) {
+    char filename[64];
+    sprintf(filename, "/sys/devices/ocp.3/helper.12/AIN%d", i);
+    if ((fd[i] = fopen(filename, "r")) == NULL) {
+      perror("cannot open:");
+      exit(1);
+    }
+  }
 }
 void closeAIO(void)
 {
-	int i;
-	for (i = 0; i < AIO_NUM; i++)
-		fclose(fd[i]);
+  int i;
+  for (i = 0; i < AIO_NUM; i++)
+    fclose(fd[i]);
 }
 uint32_t myAnalogRead(int i)
 {
-	uint32_t num;
-	fseek(fd[i], 0, SEEK_SET);
-	fscanf(fd[i], "%d", &num);
-	fflush(fd[i]);
+  uint32_t num;
+  fseek(fd[i], 0, SEEK_SET);
+  fscanf(fd[i], "%d", &num);
+  fflush(fd[i]);
 
-	return num;
+  return num;
 }
 
 /*************************************************************/
@@ -401,9 +401,9 @@ double ADCtoPressure (unsigned long ADCValue){
   /* Pressure Sensor Specification */
   double alpha = 0.0009;
   double beta = 0.04;
-	// XFGM-6001MPGSR
+  // XFGM-6001MPGSR
   //double Perror = 25; //Pressure error in kPa
-	// AG206-001MG
+  // AG206-001MG
   double Perror = 15; //Pressure error in kPa
 
   /* Using error */
@@ -420,7 +420,7 @@ double ADCtoPressure (unsigned long ADCValue){
 //         ADCValue to Angle
 // Desc  : Convert ADC value to Angle (Degree)
 // Input : ADCValue : Current ADC Value
-//				 Pot_ref	: ADC Value for 0 degree angled
+//	   Pot_ref  : ADC Value for 0 degree angled
 /**************************************************/
 double ADCtoAngle (unsigned long ADCValue, int Pot_ref){
   double temp;
@@ -437,49 +437,49 @@ double ADCtoAngle (unsigned long ADCValue, int Pot_ref){
 /***************************************************************/
 unsigned long *read_sensor(unsigned long adc_num,unsigned long* sensorVal){
 
-	unsigned long pin_num=0x00;
-	unsigned long sVal;
-	unsigned long commandout=0x00;
+  unsigned long pin_num=0x00;
+  unsigned long sVal;
+  unsigned long commandout=0x00;
 
-	int i;
+  int i;
 
-    for(pin_num=0;pin_num<NUM_ADC_PORT;pin_num++){
-    	sVal=0x00;
-			set_CS_SENSOR(true);
-			set_CLK_SENSOR(false);
-			set_DIN_SENSOR(false);
-			set_CS_SENSOR(false);
+  for(pin_num=0;pin_num<NUM_ADC_PORT;pin_num++){
+    sVal=0x00;
+    set_CS_SENSOR(true);
+    set_CLK_SENSOR(false);
+    set_DIN_SENSOR(false);
+    set_CS_SENSOR(false);
 
-    	commandout=pin_num;
-    	commandout|=0x18;
-    	commandout<<=3;
+    commandout=pin_num;
+    commandout|=0x18;
+    commandout<<=3;
 
-	    for(i=0;i<5;i++){
-				if(commandout&0x80){
-					set_DIN_SENSOR(true);
-		  	}
-		  	else{
-					set_DIN_SENSOR(false);
-		  	}
-		  	commandout<<=1;
-		  	set_CLK_SENSOR(true);
-		  	set_CLK_SENSOR(false);
-			}
-	    for(i=0;i<2;i++){
-				set_CLK_SENSOR(true);
-		    set_CLK_SENSOR(false);
-	    }
-	    for(i=0;i<12;i++){
-				set_CLK_SENSOR(true);
-				sVal<<=1;
-	  		if(get_DOUT_SENSOR(adc_num)){
-	    		sVal|=0x01;
-	    	}
-		  	set_CLK_SENSOR(false);
-    	}
-    	sensorVal[pin_num]=sVal;
+    for(i=0;i<5;i++){
+      if(commandout&0x80){
+	set_DIN_SENSOR(true);
+      }
+      else{
+	set_DIN_SENSOR(false);
+      }
+      commandout<<=1;
+      set_CLK_SENSOR(true);
+      set_CLK_SENSOR(false);
     }
-    return(sensorVal);
+    for(i=0;i<2;i++){
+      set_CLK_SENSOR(true);
+      set_CLK_SENSOR(false);
+    }
+    for(i=0;i<12;i++){
+      set_CLK_SENSOR(true);
+      sVal<<=1;
+      if(get_DOUT_SENSOR(adc_num)){
+	sVal|=0x01;
+      }
+      set_CLK_SENSOR(false);
+    }
+    sensorVal[pin_num]=sVal;
+  }
+  return(sensorVal);
 }
 
 /***************************************************************/
@@ -499,52 +499,51 @@ void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT
   for (j = 0; j< NUM_ADC; j++){
     tmp_val0=read_sensor(j,tmp_val);
     for (k = 0; k< NUM_ADC_PORT; k++){
-			index_adc = j*NUM_ADC_PORT + k;
+      index_adc = j*NUM_ADC_PORT + k;
 
-			// get only used ports
-			if (index_adc >= NUM_OF_SENSOR)
-				break;
+      // get only used ports
+      if (index_adc >= NUM_OF_SENSOR)
+	break;
 
       SensorVal[index][j][k]=tmp_val0[k];
       //printf("[%d][%d] %lu\n",j,k,SensorVal[j][k]);
 
-			// Getting Angle from Potentiometer
-			if (index_adc < NUM_OF_POT_SENSOR){
-				Angle[index_adc] = ADCtoAngle(tmp_val0[k],Pot_straight[index_adc]);
-			}
-			// Getting Pressure from Pressure SENSOR
-			else if(index_adc >= NUM_OF_POT_SENSOR){
-				Pressure[index_adc-NUM_OF_POT_SENSOR] = ADCtoPressure(tmp_val0[k]);
-
-				// for first board (Right) valve 0-10
-				//if ((index_adc-NUM_OF_POT_SENSOR) < (NUM_OF_MUSCLE/2))
-				//	Pressure[index_adc-NUM_OF_POT_SENSOR] = ADCtoPressure(tmp_val0[k]);
-				// second board (Left) valve 16-26
-				//else
-				//	Pressure[index_adc-NUM_OF_POT_SENSOR - (NUM_OF_MUSCLE/2) + NUM_OF_CHANNELS] = ADCtoPressure(tmp_val0[k]);
-
-			}
+      // Getting Angle from Potentiometer
+      if (index_adc < NUM_OF_POT_SENSOR){
+	Angle[index_adc] = ADCtoAngle(tmp_val0[k],Pot_straight[index_adc]);
+      }
+      // Getting Pressure from Pressure SENSOR
+      else if(index_adc >= NUM_OF_POT_SENSOR){
+	Pressure[index_adc-NUM_OF_POT_SENSOR] = ADCtoPressure(tmp_val0[k]);
+	
+	// for first board (Right) valve 0-10
+	//if ((index_adc-NUM_OF_POT_SENSOR) < (NUM_OF_MUSCLE/2))
+	//  Pressure[index_adc-NUM_OF_POT_SENSOR] = ADCtoPressure(tmp_val0[k]);
+	// second board (Left) valve 16-26
+	//else
+	//  Pressure[index_adc-NUM_OF_POT_SENSOR - (NUM_OF_MUSCLE/2) + NUM_OF_CHANNELS] = ADCtoPressure(tmp_val0[k]);
+      }
     }
   }
-	// Adjusting Angle direction
-	Angle[0] = -1* Angle[0];
-	Angle[3] = -1* Angle[3];
-	Angle[4] = -1* Angle[4];
-	Angle[6] = -1* Angle[6];
-	Angle[8] = -1* Angle[8];
+  // Adjusting Angle direction
+  Angle[0] = -1* Angle[0];
+  Angle[3] = -1* Angle[3];
+  Angle[4] = -1* Angle[4];
+  Angle[6] = -1* Angle[6];
+  Angle[8] = -1* Angle[8];
 }
 
 void printSensorVal (int i, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT]){
-	int j,k;
+  int j,k;
 
-	for (j = 0; j< NUM_ADC; j++){
-		for (k = 0; k< NUM_ADC_PORT; k++){
-			// show only used port
-			if (j*NUM_ADC_PORT + k >= NUM_OF_SENSOR)
-				break;
-			printf("%4lu\t", SensorVal[i][j][k]);
-		}
-	}
+  for (j = 0; j< NUM_ADC; j++){
+    for (k = 0; k< NUM_ADC_PORT; k++){
+      // show only used port
+      if (j*NUM_ADC_PORT + k >= NUM_OF_SENSOR)
+	break;
+      printf("%4lu\t", SensorVal[i][j][k]);
+    }
+  }
 }
 
 
@@ -610,34 +609,34 @@ void config_IMU(DeviceClass *device, XsPortInfo *mtPort, XsOutputMode outputMode
   else if (mtPort->deviceId().isMtMk4() || mtPort->deviceId().isFmt_X000())
     {
 
-			/* set the device configuration with outputMode --> MTData */
-			/*
-			XsOutputConfigurationArray configArray;
-      XsOutputConfiguration none(XDI_None, 100);
-      configArray.push_back(none);
+      /* set the device configuration with outputMode --> MTData */
+      /*
+	XsOutputConfigurationArray configArray;
+	XsOutputConfiguration none(XDI_None, 100);
+	configArray.push_back(none);
+	device->setOutputConfiguration(configArray);
+	device->setDeviceMode(outputMode, outputSettings);
+      */
+
+      /* set with OutputConfiguration --> MTData2 */
+      XsOutputConfigurationArray configArray;
+
+      if (outputMode == XOM_Orientation){
+	XsOutputConfiguration quat(XDI_Quaternion, 100);
+	configArray.push_back(quat);
+      }
+
+      else if (outputMode == XOM_Calibrated){
+	XsOutputConfiguration acc(XDI_Acceleration, 100);
+	XsOutputConfiguration gyr(XDI_RateOfTurn, 100);
+	configArray.push_back(acc);
+	configArray.push_back(gyr);
+      }
+
+      XsOutputConfiguration sampletime(XDI_SampleTimeFine, 100);
+      configArray.push_back(sampletime);
+
       device->setOutputConfiguration(configArray);
-      device->setDeviceMode(outputMode, outputSettings);
-			*/
-
-			/* set with OutputConfiguration --> MTData2 */
-			XsOutputConfigurationArray configArray;
-
-			if (outputMode == XOM_Orientation){
-				XsOutputConfiguration quat(XDI_Quaternion, 100);
-				configArray.push_back(quat);
-			}
-
-			else if (outputMode == XOM_Calibrated){
-				XsOutputConfiguration acc(XDI_Acceleration, 100);
-				XsOutputConfiguration gyr(XDI_RateOfTurn, 100);
-				configArray.push_back(acc);
-				configArray.push_back(gyr);
-			}
-
-			XsOutputConfiguration sampletime(XDI_SampleTimeFine, 100);
-			configArray.push_back(sampletime);
-
-			device->setOutputConfiguration(configArray);
     }
 
   // Put the device in measurement mode
@@ -672,106 +671,106 @@ void measure_IMU(DeviceClass *device, XsPortInfo *mtPort, XsOutputMode outputMod
 
     for (XsMessageArray::iterator it = msgs.begin(); it != msgs.end(); ++it)
       {
-				// Retrieve a packet
-				XsDataPacket packet;
-				if ((*it).getMessageId() == XMID_MtData) {
-					//printf("MTData\n");
-	  			LegacyDataPacket lpacket(1, false);
-	  			lpacket.setMessage((*it));
-	  			lpacket.setXbusSystem(false);
-	  			lpacket.setDeviceId(mtPort->deviceId(), 0);
-	  			lpacket.setDataFormat(outputMode, outputSettings,0);//lint !e534
-	  			XsDataPacket_assignFromLegacyDataPacket(&packet, &lpacket, 0);
-	  			foundAck = true;
-				}
-				else if ((*it).getMessageId() == XMID_MtData2) {
-					//printf("MTData2\n");
-	  			packet.setMessage((*it));
-	  			packet.setDeviceId(mtPort->deviceId());
-	  			foundAck = true;
-				}
+	// Retrieve a packet
+	XsDataPacket packet;
+	if ((*it).getMessageId() == XMID_MtData) {
+	  //printf("MTData\n");
+	  LegacyDataPacket lpacket(1, false);
+	  lpacket.setMessage((*it));
+	  lpacket.setXbusSystem(false);
+	  lpacket.setDeviceId(mtPort->deviceId(), 0);
+	  lpacket.setDataFormat(outputMode, outputSettings,0);//lint !e534
+	  XsDataPacket_assignFromLegacyDataPacket(&packet, &lpacket, 0);
+	  foundAck = true;
+	}
+	else if ((*it).getMessageId() == XMID_MtData2) {
+	  //printf("MTData2\n");
+	  packet.setMessage((*it));
+	  packet.setDeviceId(mtPort->deviceId());
+	  foundAck = true;
+	}
 
-				/*
-				if (packet.containsOrientation())
-					printf("contain Orientation\n");
-				if (packet.containsCalibratedData())
-					printf("contain calibrated Data\n");
-				if (packet.containsCalibratedAcceleration())
-					printf("contain calibrated Acc\n");
-				if (packet.containsCalibratedGyroscopeData())
-					printf("contain calibrated Gyroscope\n");
-				if (packet.containsCalibratedMagneticField())
-					printf("contain calibrated Magnetometer\n");
-				if (packet.containsSampleTimeCoarse())
-				  printf("contain SampleTimeCoarse\n");
-				*/
-				// Get the quaternion data
-					IMUData->quaternion = packet.orientationQuaternion();
-					// Convert packet to euler
-					IMUData->euler = packet.orientationEuler();
-					// Get calibrated Data
-					IMUData->calData = packet.calibratedData();
+	/*
+	  if (packet.containsOrientation())
+	  printf("contain Orientation\n");
+	  if (packet.containsCalibratedData())
+	  printf("contain calibrated Data\n");
+	  if (packet.containsCalibratedAcceleration())
+	  printf("contain calibrated Acc\n");
+	  if (packet.containsCalibratedGyroscopeData())
+	  printf("contain calibrated Gyroscope\n");
+	  if (packet.containsCalibratedMagneticField())
+	  printf("contain calibrated Magnetometer\n");
+	  if (packet.containsSampleTimeCoarse())
+	  printf("contain SampleTimeCoarse\n");
+	*/
+	// Get the quaternion data
+	IMUData->quaternion = packet.orientationQuaternion();
+	// Convert packet to euler
+	IMUData->euler = packet.orientationEuler();
+	// Get calibrated Data
+	IMUData->calData = packet.calibratedData();
 
-					// Get Sample Time Coarse
-					IMUData->sample_time = packet.sampleTimeFine();
-		 	}
-	} while (!foundAck);
+	// Get Sample Time Coarse
+	IMUData->sample_time = packet.sampleTimeFine();
+      }
+  } while (!foundAck);
 
 }
 
 
 void test_IMU(){
-	std::cout << "Looping Printing by accessing function each time.." << std::endl;
-	int mode;
-	int i=0;
-	printf("Output Mode <1:Orientation><2:calibratedData> : ");
-	scanf ("%d",&mode);
-	if (mode==1){
-		XsOutputMode outputMode = XOM_Orientation;
-		XsOutputSettings outputSettings = XOS_OrientationMode_Quaternion;
-		config_IMU(&device,&mtPort, outputMode, outputSettings);
-		while(i<MAX_SAMPLE_NUM)
-		  {
-		  //measure_IMU(&device,&mtPort, outputMode, outputSettings, &quaternion,&euler,&calData,&sample_time);
-			measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
-			//printf("\n");
-			std::cout  << "\r"
-			    << "W:" << std::setw(5) << std::fixed << std::setprecision(2) << IMUData[i].quaternion.w()
-			    << ",X:" << std::setw(5) << std::fixed << std::setprecision(2) << IMUData[i].quaternion.x()
-			    << ",Y:" << std::setw(5) << std::fixed << std::setprecision(2) << IMUData[i].quaternion.y()
-			    << ",Z:" << std::setw(5) << std::fixed << std::setprecision(2) << IMUData[i].quaternion.z()
-		    ;
-		  std::cout << ",\tRoll:" << std::setw(7) << std::fixed << std::setprecision(2) << IMUData[i].euler.roll()
-			    << ",Pitch:" << std::setw(7) << std::fixed << std::setprecision(2) << IMUData[i].euler.pitch()
-			    << ",Yaw:" << std::setw(7) << std::fixed << std::setprecision(2) << IMUData[i].euler.yaw()
-			   ;
-			i++;
-		  }
-	}
-	else if(mode==2){
-		XsOutputMode outputMode = XOM_Calibrated;
-		XsOutputSettings outputSettings = XOS_CalibratedMode_All;
+  std::cout << "Looping Printing by accessing function each time.." << std::endl;
+  int mode;
+  int i=0;
+  printf("Output Mode <1:Orientation><2:calibratedData> : ");
+  scanf ("%d",&mode);
+  if (mode==1){
+    XsOutputMode outputMode = XOM_Orientation;
+    XsOutputSettings outputSettings = XOS_OrientationMode_Quaternion;
+    config_IMU(&device,&mtPort, outputMode, outputSettings);
+    while(i<MAX_SAMPLE_NUM)
+      {
+	//measure_IMU(&device,&mtPort, outputMode, outputSettings, &quaternion,&euler,&calData,&sample_time);
+	measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+	//printf("\n");
+	std::cout  << "\r"
+		   << "W:" << std::setw(5) << std::fixed << std::setprecision(2) << IMUData[i].quaternion.w()
+		   << ",X:" << std::setw(5) << std::fixed << std::setprecision(2) << IMUData[i].quaternion.x()
+		   << ",Y:" << std::setw(5) << std::fixed << std::setprecision(2) << IMUData[i].quaternion.y()
+		   << ",Z:" << std::setw(5) << std::fixed << std::setprecision(2) << IMUData[i].quaternion.z()
+	  ;
+	std::cout << ",\tRoll:" << std::setw(7) << std::fixed << std::setprecision(2) << IMUData[i].euler.roll()
+		  << ",Pitch:" << std::setw(7) << std::fixed << std::setprecision(2) << IMUData[i].euler.pitch()
+		  << ",Yaw:" << std::setw(7) << std::fixed << std::setprecision(2) << IMUData[i].euler.yaw()
+	  ;
+	i++;
+      }
+  }
+  else if(mode==2){
+    XsOutputMode outputMode = XOM_Calibrated;
+    XsOutputSettings outputSettings = XOS_CalibratedMode_All;
 
-		double acc;
-		config_IMU(&device,&mtPort, outputMode, outputSettings);
-		while(i<MAX_SAMPLE_NUM)
-		  {
-		  //measure_IMU(&device,&mtPort, outputMode, outputSettings, &quaternion,&euler,&calData,&sample_time);
-			measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
-			std::cout  << "\r"
-			   	<< "AccX:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_acc.value(0)
-			    << ", AccY:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_acc.value(1)
-			    << ", AccZ:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_acc.value(2)
+    double acc;
+    config_IMU(&device,&mtPort, outputMode, outputSettings);
+    while(i<MAX_SAMPLE_NUM)
+      {
+	//measure_IMU(&device,&mtPort, outputMode, outputSettings, &quaternion,&euler,&calData,&sample_time);
+	measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+	std::cout  << "\r"
+		   << "AccX:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_acc.value(0)
+		   << ", AccY:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_acc.value(1)
+		   << ", AccZ:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_acc.value(2)
 
-			   	<< ",   GyrX:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_gyr.value(0)
-			    << ", GyrY:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_gyr.value(1)
-			    << ", GyrZ:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_gyr.value(2)
-			;
-			i++;
-		  }
+		   << ",   GyrX:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_gyr.value(0)
+		   << ", GyrY:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_gyr.value(1)
+		   << ", GyrZ:" << std::setw(7) << std::fixed << std::setprecision(4) << IMUData[i].calData.m_gyr.value(2)
+	  ;
+	i++;
+      }
 
-			printf("\n");
-	}
+    printf("\n");
+  }
 }
 
 /*************************************************************/
@@ -844,8 +843,8 @@ void init_sensor(void) {
 // Output :
 /***************************************************************/
 int logging (int mode, const char *message, int  index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT],
-	 						double *SetPoint_Angle, IMUDataArray *IMUData){
-//int logging(int mode, const char *message){
+	     double *SetPoint_Angle, IMUDataArray *IMUData){
+  //int logging(int mode, const char *message){
   static FILE *fp;
   char str[256];
 
@@ -858,11 +857,11 @@ int logging (int mode, const char *message, int  index, unsigned long SensorVal[
     struct tm *pnow = localtime (&now);
 
     sprintf (str,"log/%d%02d%02d_%02d%02d",
-	   pnow->tm_year+1900,   // year start from 1900
-	   pnow->tm_mon+1,  // month [0,11]
-	   pnow->tm_mday,
-	   pnow->tm_hour,
-	   pnow->tm_min);
+	     pnow->tm_year+1900,   // year start from 1900
+	     pnow->tm_mon+1,  // month [0,11]
+	     pnow->tm_mday,
+	     pnow->tm_hour,
+	     pnow->tm_min);
 
     if (message!=""){
       strcat (str,"_");
@@ -880,52 +879,52 @@ int logging (int mode, const char *message, int  index, unsigned long SensorVal[
 
 
   else if (mode==2){
-		// Column #0 : index
+    // Column #0 : index
     sprintf(str, "%d",index);
     fputs(str, fp);
 
-		// All ADC Value, Column #1~#32
+    // All ADC Value, Column #1~#32
     for (j = 0; j< NUM_ADC; j++){
       for (k = 0; k< NUM_ADC_PORT; k++){
-				// show only used port
-				if (j*NUM_ADC_PORT + k >= NUM_OF_SENSOR)
-					break;
-				//sprintf(str, "%10lu\t", SensorVal[index][j][k]);
-				sprintf(str, ",%d", SensorVal[index][j][k]);
-				fputs(str, fp);
+	// show only used port
+	if (j*NUM_ADC_PORT + k >= NUM_OF_SENSOR)
+	  break;
+	//sprintf(str, "%10lu\t", SensorVal[index][j][k]);
+	sprintf(str, ",%d", SensorVal[index][j][k]);
+	fputs(str, fp);
       }
     }
 
-		// Angle Set Point Value, Column #33~#42
-		for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-			// converting float to string
-			std::string strs = ","+ std::to_string(SetPoint_Angle[j]);
-			fputs(strs.c_str(), fp);
-		}
+    // Angle Set Point Value, Column #33~#42
+    for (j = 0; j<NUM_OF_POT_SENSOR;j++){
+      // converting float to string
+      std::string strs = ","+ std::to_string(SetPoint_Angle[j]);
+      fputs(strs.c_str(), fp);
+    }
 
-		// IMU roll pitch yaw, Column #43~45
-		std::string strs = ","+ std::to_string(IMUData[index].euler.roll());
-		fputs(strs.c_str(), fp);
-		strs = ","+ std::to_string(IMUData[index].euler.pitch());
-		fputs(strs.c_str(), fp);
-		strs = ","+ std::to_string(IMUData[index].euler.yaw());
-		fputs(strs.c_str(), fp);
+    // IMU roll pitch yaw, Column #43~45
+    std::string strs = ","+ std::to_string(IMUData[index].euler.roll());
+    fputs(strs.c_str(), fp);
+    strs = ","+ std::to_string(IMUData[index].euler.pitch());
+    fputs(strs.c_str(), fp);
+    strs = ","+ std::to_string(IMUData[index].euler.yaw());
+    fputs(strs.c_str(), fp);
 
-		/*
-		// Accelerometer Value, Column #21~#23
-		for (j=0;j<3;j++){
-			std::string strs = ","+ std::to_string(calData[index].m_acc.value(j));
-			fputs(strs.c_str(), fp);
-		}
-		// Gyroscope Value, Column #24~#26
-		for (j=0;j<3;j++){
-			std::string strs = ","+ std::to_string(calData[index].m_gyr.value(j));
-			fputs(strs.c_str(), fp);
-		}
-		*/
-		// Time Data in milliseconds, last Column
-		strs = ","+ std::to_string(TimeStamp[index]);
-		fputs(strs.c_str(), fp);
+    /*
+    // Accelerometer Value, Column #21~#23
+    for (j=0;j<3;j++){
+    std::string strs = ","+ std::to_string(calData[index].m_acc.value(j));
+    fputs(strs.c_str(), fp);
+    }
+    // Gyroscope Value, Column #24~#26
+    for (j=0;j<3;j++){
+    std::string strs = ","+ std::to_string(calData[index].m_gyr.value(j));
+    fputs(strs.c_str(), fp);
+    }
+    */
+    // Time Data in milliseconds, last Column
+    strs = ","+ std::to_string(TimeStamp[index]);
+    fputs(strs.c_str(), fp);
 
     sprintf(str, "\n");
     fputs(str, fp);
@@ -942,7 +941,7 @@ int logging (int mode, const char *message, int  index, unsigned long SensorVal[
 int startlog(const char* message){
 	int mode = 1;
 	IMUDataArray *dummy;
-  logging(mode,message,NULL,NULL,NULL,dummy);
+	logging(mode,message,NULL,NULL,NULL,dummy);
 	return mode;
 }
 
@@ -958,13 +957,13 @@ int entrylog(int  index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], doubl
 int endlog() {
 	int mode = 3;
 	IMUDataArray *dummy;
-  logging(mode,"",NULL,NULL,NULL,dummy);
+	logging(mode,"",NULL,NULL,NULL,dummy);
 	return mode;
 }
 
 /* */
 void fulllog(const char* message, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT],
-						 double *SetPoint_Angle, IMUDataArray *IMUData, int DataMark){
+		 double *SetPoint_Angle, IMUDataArray *IMUData, int DataMark){
   int i;
   startlog(message);
   for (i=0;i<DataMark;i++){
@@ -1023,40 +1022,40 @@ void loadTunings(double *Kp, double *Ki, double *Kd){
 /*************************************************************/
 
 void ResetAllValve (){
-	int i;
-	for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
-		if (i%16 < (NUM_OF_MUSCLE/2)){
-			setState(i,0.0);
-			//printf("Valve #%d off\n",i);
-		}
-	}
+  int i;
+  for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
+    if (i%16 < (NUM_OF_MUSCLE/2)){
+      setState(i,0.0);
+      //printf("Valve #%d off\n",i);
+    }
+  }
 }
 template<typename T, size_t N>
 void ResetValve (T (&mus)[N]){
-	int i;
-	for (i=0;i< N ;i++){
-		setState(mus[i],0.0);
-	}
+  int i;
+  for (i=0;i< N ;i++){
+    setState(mus[i],0.0);
+  }
 }
 void SetAllValve (double value){
-	int i;
-	for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
-		if (i%16 < (NUM_OF_MUSCLE/2)){
-			setState(i,value);
-		}
-	}
+  int i;
+  for (i=0;i< (NUM_DAC*NUM_OF_CHANNELS) ;i++){
+    if (i%16 < (NUM_OF_MUSCLE/2)){
+      setState(i,value);
+    }
+  }
 }
 template<typename T, size_t N>
 void SetValve (T (&mus)[N], double value){
-	int i;
-	for (i=0;i< N ;i++){
-		setState(mus[i],value);
-	}
+  int i;
+  for (i=0;i< N ;i++){
+    setState(mus[i],value);
+  }
 }
 
 void SetFrontalPlaneMuscle (double value){
-	int mus[] = {ADD_R_CH,ADD_L_CH,ABD_R_CH,ABD_L_CH,TP_R_CH,TP_L_CH,FB_R_CH,FB_L_CH};
-	SetValve(mus,value);
+  int mus[] = {ADD_R_CH,ADD_L_CH,ABD_R_CH,ABD_L_CH,TP_R_CH,TP_L_CH,FB_R_CH,FB_L_CH};
+  SetValve(mus,value);
 }
 
 /*===== Running test to print all the Sensor Data ======*/
@@ -1911,18 +1910,15 @@ int main(int argc, char *argv[]) {
 				AllAngleControl(&i);
 			}
 
-			/*
 			// incline trunk forward, reducing Pitch
-			SetPoint_Angle[0] = 20;
-			SetPoint_Angle[1] = 20;
+			SetPoint_Angle[0] = 10;
+			SetPoint_Angle[1] = 10;
 			for(j=0;j<5;j++)				// allowing only some time to incline trunk forward
 			//while (state!=jointnum)
 			{
 				//state=JointAngleControl(jointlist,jointnum,&i);
 				AllAngleControl(&i);
 			}
-			*/
-
 
 			//releasing muscle tension
 			int mus[]= {IL_L_CH,IL_R_CH,GMAX_L_CH,GMAX_R_CH,VAS_L_CH,VAS_R_CH,HAM_L_CH,HAM_R_CH,
