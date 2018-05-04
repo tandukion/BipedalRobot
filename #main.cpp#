@@ -473,7 +473,7 @@ unsigned long *read_sensor(unsigned long adc_num,unsigned long* sensorVal){
       set_CLK_SENSOR(true);
       sVal<<=1;
       if(get_DOUT_SENSOR(adc_num)){
-				sVal|=0x01;
+	sVal|=0x01;
       }
       set_CLK_SENSOR(false);
     }
@@ -1892,7 +1892,7 @@ int main(int argc, char *argv[]) {
 
 			int active1 [6] = {GMAX_R, GMAX_L, VAS_R, VAS_L, RF_R, RF_L};
 			int counter1[4] = {IL_R, IL_L, HAM_R, HAM_L};
-			int active2 [2] = {SOL_R, SOL_L};//, TP_R, TP_L, FB_R, FB_L};
+			int active2 [6] = {SOL_R, SOL_L, TP_R, TP_L, FB_R, FB_L};
 
 			jointnum=2;
 			jointlist = new int[jointnum];
@@ -1910,7 +1910,6 @@ int main(int argc, char *argv[]) {
 				AllAngleControl(&i);
 			}
 
-			/*
 			// incline trunk forward, reducing Pitch
 			SetPoint_Angle[0] = 10;
 			SetPoint_Angle[1] = 10;
@@ -1920,7 +1919,6 @@ int main(int argc, char *argv[]) {
 				//state=JointAngleControl(jointlist,jointnum,&i);
 				AllAngleControl(&i);
 			}
-			*/
 
 			//releasing muscle tension
 			int mus[]= {IL_L_CH,IL_R_CH,GMAX_L_CH,GMAX_R_CH,VAS_L_CH,VAS_R_CH,HAM_L_CH,HAM_R_CH,
