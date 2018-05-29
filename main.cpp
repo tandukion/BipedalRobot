@@ -1131,15 +1131,15 @@ void test_valve (){
 
 // Output Saturation
 void OutputSaturation (double *MuscleVal){
-	if (*MuscleVal > MAX_PRESSURE)
-		*MuscleVal = MAX_PRESSURE;
+	if (*MuscleVal > PRES_DEF*2)
+		*MuscleVal = PRES_DEF*2;
 	else if (*MuscleVal < MIN_PRESSURE)
 		*MuscleVal = MIN_PRESSURE;
 }
 
 void ControlSignalSaturation (double *sig){
-	if (*sig > (MAX_PRESSURE - PRES_DEF))
-		*sig = (MAX_PRESSURE - PRES_DEF);
+	if (*sig > (PRES_DEF*2 - PRES_DEF))
+		*sig = (PRES_DEF*2 - PRES_DEF);
 }
 
 // Bang-Bang Controller Test
@@ -1944,6 +1944,7 @@ int main(int argc, char *argv[]) {
 			while (!sw){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				i++;
 
 				sw = ((JointAngle[4] < sw_angle) && (JointAngle[5] < sw_angle));
 
@@ -1954,24 +1955,39 @@ int main(int argc, char *argv[]) {
 			// Jumping activation
 			std::cout << "JUMP!\n";
 
-			for (i=0; i<6; i++){
-				muscle[active1[i]].value = MAX_PRESSURE;
-				muscle[active2[i]].value = MAX_PRESSURE;
+			for (j=0; j<6; j++){
+				muscle[active1[j]].value = MAX_PRESSURE;
+				muscle[active2[j]].value = MAX_PRESSURE;
+				if (j<4)
+					muscle[counter1[j]].value = MAX_PRESSURE/4;
 			}
-			for (i=0; i<4; i++){
-				muscle[counter1[i]].value = MAX_PRESSURE/4;
+
+
+			for (j=0; j<6; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				i++;
+
+				setMuscle(muscle[active1[j]]);
+				if (j<4)
+					setMuscle(muscle[counter1[j]]);
 			}
-			for (i=0; i<6; i++){
-				setMuscle(muscle[active1[i]]);
-				if (i<4)
-					setMuscle(muscle[counter1[i]]);
-			}
+
 			usleep(50000);
-			for (i=0; i<6; i++)
-				setMuscle(muscle[active2[i]]);
+			for (j=0; j<6; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				i++;
+
+				setMuscle(muscle[active2[j]]);
+			}
 
 
-			 usleep(50000);
+			for (j=0; j<5; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				i++;
+			}
 
 			// Landing Preparation
 			//ResetValve(mus);
@@ -1993,6 +2009,18 @@ int main(int argc, char *argv[]) {
 			printf("Stepping Gait\n");
 			SetFrontalPlaneMuscle(PRES_DEF);
 			int gait1 [6] = {GMAX_R, GMAX_L, VAS_R, VAS_L, RF_R, RF_L};
+			break;
+		}
+		case 98:{
+			printf("Check sensor reading time\n");
+			StartTimePoint = std::chrono::system_clock::now();
+			i=0;
+			read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+			measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+			i++;
+			EndTimePoint = std::chrono::system_clock::now();
+			TimeStamp[i-1] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+			std::cout<< "\nDuration time: " << TimeStamp[i-1] << "ms\n";
 			break;
 		}
 		case 99:{
