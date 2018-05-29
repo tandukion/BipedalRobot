@@ -158,7 +158,7 @@
 #define RF_L_CH			26
 
 /* VALUE */
-#define MAX_PRESSURE 0.6
+#define MAX_PRESSURE 0.8
 #define MIN_PRESSURE 0
 // Default Pressure
 #define PRES_DEF 0.3
@@ -1053,6 +1053,14 @@ void SetValve (T (&mus)[N], double value){
   }
 }
 
+template<typename T, size_t N>
+void SetValveEach (T (&mus)[N], double *value){
+  int i;
+  for (i=0;i< N ;i++){
+    setState(mus[i],value[i]);
+  }
+}
+
 void SetFrontalPlaneMuscle (double value){
   int mus[] = {ADD_R_CH,ADD_L_CH,ABD_R_CH,ABD_L_CH,TP_R_CH,TP_L_CH,FB_R_CH,FB_L_CH};
   SetValve(mus,value);
@@ -1451,8 +1459,12 @@ int main(int argc, char *argv[]) {
 	usleep(1000);
 
 	if (argc==2){
-	  switch (*argv[1]){
-	  case '1': {
+		// converting command from argument
+		std::string s(argv[1]);
+		int cmd = std::stoi(s);
+
+		switch (cmd){
+	  case 1: {
 	    printf("Testing Sensor\n");
 		  printf("1. All ADC Data\n");
 	    printf("2. Angle\n");
@@ -1540,16 +1552,16 @@ int main(int argc, char *argv[]) {
 
 	    break;
 		}
-		case '2':
+		case 2:
 			test_IMU();
 			break;
-	  case '3':{
+	  case 3:{
 	    printf("Testing Valve\n");
 	    test_valve();
 			ResetAllValve();
 	    break;
 		}
-	  case '4':{
+	  case 4:{
 	    printf("Calibrate Potentiometer\n");
 			int add;
 
@@ -1579,7 +1591,7 @@ int main(int argc, char *argv[]) {
 			printf ("Done\n");
 	    break;
 		}
-		case '5':{
+		case 5:{
 			printf("Testing Bang-bang\n");
 
 			while(1){
@@ -1645,7 +1657,7 @@ int main(int argc, char *argv[]) {
 			ResetAllValve();
 			break;
 		}
-		case '6':{
+		case 6:{
 			printf ("BangBang Controller for all joints\n");
 
 			int mode,lastmode;
@@ -1782,7 +1794,7 @@ int main(int argc, char *argv[]) {
 			//ResetAllValve();
 			break;
 		}
-		case '7':{
+		case 7:{
 			printf("Testing Joint Control\n");
 			while(1){
 				std::cout<< "Num of Joints : "; std::cin >> jointnum;
@@ -1817,7 +1829,7 @@ int main(int argc, char *argv[]) {
 			}
 			break;
 		}
-		case '8':{
+		case 8:{
 			printf ("Controller Test\n");
 
 			int mode,lastmode;
@@ -1884,7 +1896,8 @@ int main(int argc, char *argv[]) {
 			//ResetAllValve();
 			break;
 		}
-		case '9':{
+		case 9:{
+			printf ("Jumping after Standing\n");
 			//usleep(2000000);
 			int sw = 0;
 			int sw_angle = -25;
@@ -1940,12 +1953,13 @@ int main(int argc, char *argv[]) {
 
 			// Jumping activation
 			std::cout << "JUMP!\n";
+
 			for (i=0; i<6; i++){
 				muscle[active1[i]].value = MAX_PRESSURE;
 				muscle[active2[i]].value = MAX_PRESSURE;
 			}
 			for (i=0; i<4; i++){
-				muscle[counter1[i]].value = 0.15;
+				muscle[counter1[i]].value = MAX_PRESSURE/4;
 			}
 			for (i=0; i<6; i++){
 				setMuscle(muscle[active1[i]]);
@@ -1955,6 +1969,12 @@ int main(int argc, char *argv[]) {
 			usleep(50000);
 			for (i=0; i<6; i++)
 				setMuscle(muscle[active2[i]]);
+
+
+			 usleep(50000);
+
+			// Landing Preparation
+			//ResetValve(mus);
 
 
 			std::cout<< "Save data (y/n)? "; std::cin >> in;
@@ -1969,7 +1989,13 @@ int main(int argc, char *argv[]) {
 			//ResetAllValve();
 			break;
 		}
-		case '99':{
+		case 10:{
+			printf("Stepping Gait\n");
+			SetFrontalPlaneMuscle(PRES_DEF);
+			int gait1 [6] = {GMAX_R, GMAX_L, VAS_R, VAS_L, RF_R, RF_L};
+			break;
+		}
+		case 99:{
 			printf("Testing update Kp Ki Kd\n");
 			while (1){
 				std::cout<< "Kp :"; std::cin >> Kp;
@@ -1983,7 +2009,7 @@ int main(int argc, char *argv[]) {
 			}
 			break;
 		}
-		case '0':{
+		case 0:{
 			printf("Reseting All Valves\n");
 			ResetAllValve();
 			break;
@@ -2001,7 +2027,8 @@ int main(int argc, char *argv[]) {
 	  printf("7 : Testing 1 Joint Control\n");
 	  printf("8 : P Controller\n");
 	  printf("9 : Jump!\n");
-	  printf("99 : Testing saving loading file\n");
+	  printf("10: A\n");
+	  printf("99: Testing saving loading file\n");
 	  printf("0 : Reset Valve\n");
 	}
 
