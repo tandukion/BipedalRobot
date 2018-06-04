@@ -218,12 +218,15 @@ int muscle_pair [muscle_pair_num][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
 // recalibration
 //int Pot_straight [10] = {2056,2432,2255,3008,2464,2040,1360,1904,2167,1984};
 //int Pot_straight [10] = {2000,2464,2232,3024,2544,2023,1344,1920,2143,1984};			// working for 66s in mode 7
-int Pot_straight [10] = {2000,2464,2132,2970,2544,2023,1344,1920,2143,1984};			// recalibrate
+//int Pot_straight [10] = {2000,2464,2132,2970,2544,2023,1344,1920,2143,1984};			// recalibrate
 //int Pot_straight [10] = {2000,2464,2132,2970,2544,2023,1414,1890,2117,2080};			// manual calibration
+//Pot 3 Broken! Shaft changed again
 
+//int Pot_straight [10] = {2000,2464,1984,2975,2544,2023,1344,1920,2143,1984};			// manual calibration on studio
+int Pot_straight [10] = {2000,2464,2018,2975,2544,2023,1344,1920,1950,1984};			// manual calibration on studio
 
 // Angle on same pressure p=0.3
-int Pot_Psame 	[10] = {1820,2665,2383,3034,2641,1817,1573,1759,2199,1931};
+int Pot_Psame 	[10] = {1820,2665,2383,3034,2641,1817,1573,1759,2199,2134};
 double Angle_Psame [10] = {27.1,28.0,2.3,4.9,-26.8,-30.8,-11.2,-10.3, -7.1,-6.9};
 
 /* Variable for IMU Data */
@@ -426,6 +429,10 @@ double ADCtoAngle (unsigned long ADCValue, int Pot_ref){
   double temp;
   /* Output in degree */
   temp = (((double) ADCValue - Pot_ref) /4096)*360;
+	if(temp>180)
+		temp-=360;
+	else if(temp<-180)
+		temp+=360;
   return temp;
 }
 
@@ -902,6 +909,7 @@ int logging (int mode, const char *message, int  index, unsigned long SensorVal[
       fputs(strs.c_str(), fp);
     }
 
+
     // IMU roll pitch yaw, Column #43~45
     std::string strs = ","+ std::to_string(IMUData[index].euler.roll());
     fputs(strs.c_str(), fp);
@@ -1118,7 +1126,10 @@ void test_valve (){
 	      read_sensor_all(i,Value,Angle,Pressure);
 
 				for (j = 0; j<valve_count;j++){
-					printf("Valve %d: %.3f\t", valve_num[j], Pressure[valve_num[j]]);
+					if (valve_num[j]<16)
+						printf("Valve %d: %.3f\t", valve_num[j], Pressure[valve_num[j]]);
+					else
+						printf("Valve %d: %.3f\t", valve_num[j], Pressure[11+(valve_num[j]%NUM_OF_CHANNELS) ]);
 				}
 				printf("\n");
 				i++;
@@ -1130,16 +1141,16 @@ void test_valve (){
 }
 
 // Output Saturation
-void OutputSaturation (double *MuscleVal){
-	if (*MuscleVal > PRES_DEF*2)
-		*MuscleVal = PRES_DEF*2;
+void OutputSaturation (double *MuscleVal, double Pres_0){
+	if (*MuscleVal > Pres_0*2)
+		*MuscleVal = Pres_0*2;
 	else if (*MuscleVal < MIN_PRESSURE)
 		*MuscleVal = MIN_PRESSURE;
 }
 
-void ControlSignalSaturation (double *sig){
-	if (*sig > (PRES_DEF*2 - PRES_DEF))
-		*sig = (PRES_DEF*2 - PRES_DEF);
+void ControlSignalSaturation (double *sig,double Pres_0){
+	if (*sig > (Pres_0*2 - Pres_0))
+		*sig = (Pres_0*2 - Pres_0);
 }
 
 // Bang-Bang Controller Test
@@ -1185,8 +1196,8 @@ int BangBang (double SetPoint, double RefPoint, MuscleDataArray *MusUp, MuscleDa
 	// Output Saturation
 	MusUp->value += MusUp->dP;
 	MusDown->value -= MusDown->dP;
-	OutputSaturation(&(MusUp->value));
-	OutputSaturation(&(MusDown->value));
+	OutputSaturation(&(MusUp->value),MusUp->p0);
+	OutputSaturation(&(MusDown->value),MusDown->p0);
 	return temp;
 }
 
@@ -1231,8 +1242,8 @@ int Controller (double SetPoint, double RefPoint, double *Err, MuscleDataArray *
 		//MusDown->value -= MusDown->dP;
 		MusUp->value = MusUp->p0 + MusUp->dP;
 		MusDown->value = MusDown->p0 - MusDown->dP;
-		OutputSaturation(&(MusUp->value));
-		OutputSaturation(&(MusDown->value));
+		OutputSaturation(&(MusUp->value),MusUp->p0);
+		OutputSaturation(&(MusDown->value),MusDown->p0);
 	}
 	else
 		temp = 1;  // return 1 for compensated stability
@@ -1428,6 +1439,10 @@ int main(int argc, char *argv[]) {
 	muscle[TP_R].p0 = PRES_DEF-0.08;
 	muscle[FB_L].p0 = PRES_DEF-0.08;
 	muscle[FB_R].p0 = PRES_DEF-0.08;
+	muscle[ABD_R].p0 = MAX_PRESSURE/2;
+	muscle[ADD_R].p0 = MAX_PRESSURE/2;
+	muscle[ABD_L].p0 = MAX_PRESSURE/2;
+	muscle[ADD_L].p0 = MAX_PRESSURE/2;
 
 	for (i=0;i<NUM_OF_MUSCLE;i++){
 		muscle[i].channel = muscle_ch[i];
@@ -1558,7 +1573,7 @@ int main(int argc, char *argv[]) {
 	  case 3:{
 	    printf("Testing Valve\n");
 	    test_valve();
-			ResetAllValve();
+			//ResetAllValve();
 	    break;
 		}
 	  case 4:{
@@ -1982,6 +1997,41 @@ int main(int argc, char *argv[]) {
 				setMuscle(muscle[active2[j]]);
 			}
 
+			// Landing Preparation
+			ResetValve(mus);
+
+			// activation switch based on joint angle
+			while (!sw){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				i++;
+
+				sw = ((JointAngle[4] < sw_angle) && (JointAngle[5] < sw_angle));
+
+				printf ("\r");
+				printf("Joint5: %.2f\t Joint6: %.2f\t", JointAngle[4], JointAngle[5]);
+			}
+
+			// Jumping activation
+			std::cout << "JUMP!\n";
+			for (j=0; j<6; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				i++;
+
+				setMuscle(muscle[active1[j]]);
+				if (j<4)
+					setMuscle(muscle[counter1[j]]);
+			}
+
+			usleep(50000);
+			for (j=0; j<6; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				i++;
+
+				setMuscle(muscle[active2[j]]);
+			}
 
 			for (j=0; j<5; j++){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
@@ -1989,8 +2039,6 @@ int main(int argc, char *argv[]) {
 				i++;
 			}
 
-			// Landing Preparation
-			//ResetValve(mus);
 
 
 			std::cout<< "Save data (y/n)? "; std::cin >> in;
