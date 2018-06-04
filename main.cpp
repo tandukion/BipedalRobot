@@ -2012,8 +2012,8 @@ int main(int argc, char *argv[]) {
 				printf("Joint5: %.2f\t Joint6: %.2f\t", JointAngle[4], JointAngle[5]);
 			}
 
-			// Jumping activation
-			std::cout << "JUMP!\n";
+			// 2nd Jumping activation
+			std::cout << "2nd JUMP!\n";
 			for (j=0; j<6; j++){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
