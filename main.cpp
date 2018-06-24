@@ -223,10 +223,14 @@ int muscle_pair [muscle_pair_num][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
 //Pot 3 Broken! Shaft changed again
 
 //int Pot_straight [10] = {2000,2464,1984,2975,2544,2023,1344,1920,2143,1984};			// manual calibration on studio
-//int Pot_straight [10] = {2000,2464,2018,2975,2544,2023,1344,1920,1950,1984};			// PI stand
+//int Pot_straight [10] = {2000,2464,2018,2975,2544,2023,1344,1920,1950,1984};			// PI stand 06/04
 // Pot 4 got impact
-//int Pot_straight [10] = {2000,2464,2018,2099,2544,2023,1344,1920,1950,1984};			// jump_take9
-int Pot_straight [10] = {2000,2464,2084,2746,2544,2023,1344,1920,1950,1984};			//10:2149
+//int Pot_straight [10] = {2000,2464,2018,2099,2544,2023,1344,1920,1950,1984};			// jump_take9 06/14
+//int Pot_straight [10] = {2000,2464,2084,2746,2544,2023,1344,1920,1950,1984};			// doublejump 06/16
+
+// Pot 7 8 changed
+int Pot_straight [10] = {2000,2464,1639,2695,2544,2023,1344,1920,1950,2128};			// new 06/23
+
 
 // Angle on same pressure p=0.3
 int Pot_Psame 	[10] = {1820,2665,2383,3034,2641,1817,1573,1759,2199,2134};
@@ -1331,7 +1335,7 @@ int JointAngleControl (int *jointlist, int N,unsigned long *index){
 	return statecount;
 }
 
-int AllAngleControl (unsigned long *index){
+int AllAngleControl (unsigned long *index, int doRF){
 	int temp=0, j,k,mus1,mus2,state[NUM_OF_POT_SENSOR],statecount=0;
 	unsigned long i;
 
@@ -1347,6 +1351,7 @@ int AllAngleControl (unsigned long *index){
 			TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 			i++;
 
+			printf("%5d ", i);
 			printf("Joint%2d ", j+1);
 			printf("Act:%5.1f Set:%5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
 
@@ -1360,8 +1365,10 @@ int AllAngleControl (unsigned long *index){
 			if (state[j]!=1)
 			{
 				printf("P%2d: %.2f  P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
-				printf("dP%2d: %5.2f  dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
-				printf("Err%2d: %5.2f Err%2d: %5.2f\t", mus1,AngleError[j], mus2,AngleError[j]);
+				//printf("dP%2d: %5.2f  dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
+				//printf("Err%2d: %5.2f Err%2d: %5.2f\t", mus1,AngleError[k%2+10], mus2,AngleError[k%2+10]);
+				printf("dP: %5.2f\t", muscle[mus2].dP);
+				printf("Err: %5.2f\t", AngleError[k%2+10]);
 			}
 			//usleep(5000);
 			printf("\n");
@@ -1371,6 +1378,7 @@ int AllAngleControl (unsigned long *index){
 
 		/**/
 		// only for RF
+		if (doRF>0){
 		for (k=0;k<4;k++){
 			if(k<2)
 				j=k;
@@ -1383,6 +1391,7 @@ int AllAngleControl (unsigned long *index){
 			TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 			i++;
 
+			printf("%5d ", i);
 			printf("Joint%2d ", j+1);
 			printf("Act:%5.1f Set:%5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
 
@@ -1397,13 +1406,16 @@ int AllAngleControl (unsigned long *index){
 			if (state[j]!=1)
 			{
 				printf("P%2d: %.2f  P%2d: %.2f\t", mus1, muscle[mus1].value, mus2,muscle[mus2].value);
-				printf("dP%2d: %5.2f  dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
-				printf("Err%2d: %5.2f Err%2d: %5.2f\t", mus1,AngleError[k%2+10], mus2,AngleError[k%2+10]);
+				//printf("dP%2d: %5.2f  dP%2d: %5.2f\t", mus1,muscle[mus1].dP, mus2,muscle[mus2].dP);
+				//printf("Err%2d: %5.2f Err%2d: %5.2f\t", mus1,AngleError[k%2+10], mus2,AngleError[k%2+10]);
+				printf("dP: %5.2f\t", muscle[mus2].dP);
+				printf("Err: %5.2f\t", AngleError[k%2+10]);
 			}
 			//usleep(5000);
 			printf("\n");
 
 			statecount +=state[j];
+		}
 		}
 		/**/
 		printf("\n");
@@ -1893,8 +1905,10 @@ int main(int argc, char *argv[]) {
 					}
 
 					//loop
+					setMuscle(muscle[RF_R]);
+					setMuscle(muscle[RF_L]);
 					while (!_kbhit()){
-						AllAngleControl(&i);
+						AllAngleControl(&i,0);	// 0:w/o RF 1:w/ RF
 					}
 
 					// if logging
@@ -1925,10 +1939,22 @@ int main(int argc, char *argv[]) {
 			int sw_angle = -25;
 			state = 0;
 
+			// ==============================================================================
+			// ==================== SETUP ===================================================
+			// ==============================================================================
+
+			//  ----- JUMPING Activation ----
 			int active1 [6] = {GMAX_R, GMAX_L, VAS_R, VAS_L, RF_R, RF_L};
 			int counter1[4] = {IL_R, IL_L, HAM_R, HAM_L};
 			int active2 [2] = {SOL_R, SOL_L};//, TP_R, TP_L, FB_R, FB_L};
 			int counter2[2] = {TA_R, TA_L};
+			// thrust
+			int thrust1[3] = {TA_L,RF_L};
+			// Stepping gait
+			int gait1 [2] = {IL_R, HAM_R};
+			int gait2 [3] = {RF_R,VAS_R,TA_R};
+			int gait3 [3] = {GMAX_R,HAM_R,RF_R};
+
 
 			jointnum=2;
 			jointlist = new int[jointnum];
@@ -1941,10 +1967,15 @@ int main(int argc, char *argv[]) {
 
 			StartTimePoint = std::chrono::system_clock::now();
 			i=0;
-			printf("Pot1 \tPot2 \tPot3 \tPot4 \tPot5 \tPot6 \tPot7 \tPot8 \tPot9 \tPot10 \n");
+			setMuscle(muscle[RF_R]);
+			setMuscle(muscle[RF_L]);
 			while (!_kbhit()){
-				AllAngleControl(&i);
+				AllAngleControl(&i,0); // 0:w/o RF 1:w/ RF
 			}
+
+			// ===================================================================================
+			// ==================== 1st MOTION ===================================================
+			// ===================================================================================
 
 			// ======= PRE JUMP #1 ============================================================
 			//releasing muscle tension
@@ -1973,29 +2004,26 @@ int main(int argc, char *argv[]) {
 
 			for (j=0; j<6; j++){
 				muscle[active1[j]].value = MAX_PRESSURE;
-				if(j<4)
-					muscle[counter1[j]].value = MAX_PRESSURE/4;
 				if (j<2){
 					muscle[active2[j]].value = 0.6;
-					//muscle[counter2[j]].value = 0.15;
+					muscle[counter2[j]].value = 0.2;
 				}
 			}
+			muscle[counter1[0]].value = MAX_PRESSURE/2; //IL_R
+			muscle[counter1[1]].value = MAX_PRESSURE/2; //IL_L
+			muscle[counter1[2]].value = MAX_PRESSURE/4; //HAM_R
+			muscle[counter1[3]].value = MAX_PRESSURE/4; //HAM_L
 
 			// ACTIVE #1
 			for (j=0; j<6; j++){
-				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
-				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
-				EndTimePoint = std::chrono::system_clock::now();
-				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
-				i++;
-
 				setMuscle(muscle[active1[j]]);
 				if (j<4)
 					setMuscle(muscle[counter1[j]]);
 			}
 
 			//Delay 50ms  -----> may affect jumping performance (?)
-			for (j=0; i<5; j++){
+			//Delay 80 --> since there is no delay on activating muscle
+			for (j=0; i<8; j++){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
 				EndTimePoint = std::chrono::system_clock::now();
@@ -2005,12 +2033,6 @@ int main(int argc, char *argv[]) {
 
 			// ACTIVE #2
 			for (j=0; j<2; j++){
-				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
-				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
-				EndTimePoint = std::chrono::system_clock::now();
-				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
-				i++;
-
 				setMuscle(muscle[active2[j]]);
 			}
 
@@ -2039,6 +2061,7 @@ int main(int argc, char *argv[]) {
 			}
 
 			//set RF=0,GMAX =0.5, IL HAM = 0.6
+			// Knee Flexing
 			setMusclenewVal(muscle[active1[4]],0);
 			setMusclenewVal(muscle[active1[5]],0);
 			setMusclenewVal(muscle[active1[0]],0.3);
@@ -2048,6 +2071,10 @@ int main(int argc, char *argv[]) {
 			setMusclenewVal(muscle[counter1[2]],0.6);
 			setMusclenewVal(muscle[counter1[3]],0.6);
 
+
+			// ===================================================================================
+			// ==================== 2nd MOTION ===================================================
+			// ===================================================================================
 
 			// ======= PRE JUMP #2 ============================================================
 			// Landing Preparation
@@ -2073,32 +2100,29 @@ int main(int argc, char *argv[]) {
 				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 				i++;
 
-				sw = ((JointAngle[4] < -30) || (JointAngle[5] < -30));
+				sw = ((JointAngle[4] < -25) || (JointAngle[5] < -25));
 
 				printf ("\r");
 				printf("Joint5: %.2f\t Joint6: %.2f\t", JointAngle[4], JointAngle[5]);
 			}
 
 			// ======= JUMP #2 ============================================================
-
+			/*
 			// Jumping activation set
 			std::cout << "2nd JUMP!\n";
+			muscle[active1[0]].value = 0.5;  // GMAX reduced for inclining forward
+			muscle[active1[1]].value = 0.5;  // GMAX reduced for inclining forward
 
 			// ACTIVE #1
 			for (j=0; j<6; j++){
-				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
-				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
-				EndTimePoint = std::chrono::system_clock::now();
-				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
-				i++;
-
 				setMuscle(muscle[active1[j]]);
 				if (j<4)
 					setMuscle(muscle[counter1[j]]);
 			}
 
 			//Delay 50ms  -----> may affect jumping performance (?)
-			for (j=0; i<5; j++){
+			//Delay 80ms --> since there is no delay on activating muscle
+			for (j=0; i<8; j++){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
 				EndTimePoint = std::chrono::system_clock::now();
@@ -2108,19 +2132,80 @@ int main(int argc, char *argv[]) {
 
 			// ACTIVE #2
 			for (j=0; j<2; j++){
+				setMuscle(muscle[active2[j]]);
+			}
+			*/
+
+			// ======= THRUST + SWING ============================================================
+
+			// ---- STEPPING Activation---
+
+			// thrust by left leg
+			muscle[thrust1[0]].value=0.8;
+			muscle[thrust1[1]].value=0.8;
+			for(j=0;j<2;j++){
+				setMuscle(muscle[thrust1[j]]);
+			}
+
+			// stepping by right leg
+			muscle[gait1[0]].value=0.8;
+			muscle[gait1[1]].value=0;
+			for(j=0;j<2;j++){
+				setMuscle(muscle[gait1[j]]);
+			}
+
+			//Delay 80ms --> since there is no delay on activating muscle
+			for (j=0; i<8; j++){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
 				EndTimePoint = std::chrono::system_clock::now();
 				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 				i++;
+			}
 
+			// thrust by jumping by left leg
+			for (j=0; j<2; j++){
 				setMuscle(muscle[active2[j]]);
 			}
 
+			for (j=0; i<10; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
+			}
+			// stepping by right leg
+			setMusclenewVal(muscle[gait1[1]],0);
+			muscle[gait2[0]].value=0.2;
+			muscle[gait2[1]].value=0.4;
+			muscle[gait2[2]].value=0.3;
+			for(j=0;j<3;j++){
+				setMuscle(muscle[gait2[j]]);
+			}
 
-			// ===== END OF MOTION =========================================================
+			//delay
+			for (j=0; j<20; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
+			}
+			// stepping by right leg
+			setMusclenewVal(muscle[gait1[0]],0.2);
+			setMusclenewVal(muscle[gait2[0]],0);
+			muscle[gait3[0]].value=0.4;
+			muscle[gait3[1]].value=0.2;
+			muscle[gait3[2]].value=0.2;
+			for(j=0;j<3;j++){
+				setMuscle(muscle[gait3[j]]);
+			}
+
+			// ===================================================================================
+			// ==================== END OF MOTION=================================================
+			// ===================================================================================
 			//data reading for the rest
-
 			printf("%d\n", i);
 			for (j=i; i<SampleNum; j++){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
@@ -2146,8 +2231,69 @@ int main(int argc, char *argv[]) {
 		}
 		case 10:{
 			printf("Stepping Gait\n");
-			SetFrontalPlaneMuscle(PRES_DEF);
-			int gait1 [6] = {GMAX_R, GMAX_L, VAS_R, VAS_L, RF_R, RF_L};
+			StartTimePoint = std::chrono::system_clock::now();
+			i=0;
+			//SetFrontalPlaneMuscle(PRES_DEF);
+			int thrust1[2] = {TA_L,RF_L};
+			int gait1 [2] = {IL_R, HAM_R};
+			int gait2 [3] = {RF_R,VAS_R,TA_R};
+			int gait3 [3] = {GMAX_R,HAM_R,RF_R};
+
+			setMusclenewVal(muscle[RF_R],0);
+			setMusclenewVal(muscle[IL_R],0);
+			setMusclenewVal(muscle[GMAX_R],0);
+			setMusclenewVal(muscle[VAS_R],0);
+			setMusclenewVal(muscle[HAM_R],0);
+			setMusclenewVal(muscle[TA_R],0);
+			setMusclenewVal(muscle[SOL_R],0);
+			setMusclenewVal(muscle[TA_L],0);
+			setMusclenewVal(muscle[SOL_L],0);
+			setMusclenewVal(muscle[RF_L],0);
+			usleep(100000);
+
+			muscle[gait1[0]].value=0.8;
+			muscle[gait1[1]].value=0;
+			for(j=0;j<2;j++){
+				setMuscle(muscle[gait1[j]]);
+			}
+			muscle[thrust1[0]].value=0.8;
+			muscle[thrust1[1]].value=0.8;
+			setMuscle(muscle[thrust1[0]]);
+			setMuscle(muscle[thrust1[1]]);
+
+			//delay
+			for (j=0; j<80; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
+			}
+			setMusclenewVal(muscle[gait1[1]],0);
+			muscle[gait2[0]].value=0.2;
+			muscle[gait2[1]].value=0.4;
+			muscle[gait2[2]].value=0.3;
+			for(j=0;j<3;j++){
+				setMuscle(muscle[gait2[j]]);
+			}
+
+			//delay
+			for (j=0; j<20; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
+			}
+			setMusclenewVal(muscle[gait1[0]],0.2);
+			setMusclenewVal(muscle[gait2[0]],0);
+			muscle[gait3[0]].value=0.4;
+			muscle[gait3[1]].value=0.2;
+			muscle[gait3[2]].value=0.2;
+			for(j=0;j<3;j++){
+				setMuscle(muscle[gait3[j]]);
+			}
+
 			break;
 		}
 		case 98:{
@@ -2156,11 +2302,27 @@ int main(int argc, char *argv[]) {
 			i=0;
 			read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 			measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+			/*
+			setMusclenewVal(muscle[RF_R],0.5);
+			setMusclenewVal(muscle[RF_L],0.5);
+			setMusclenewVal(muscle[IL_R],0.3);
+			setMusclenewVal(muscle[IL_L],0.3);
+			setMusclenewVal(muscle[GMAX_R],0.3);
+			setMusclenewVal(muscle[GMAX_L],0.3);
+			setMusclenewVal(muscle[IL_R],0.3);
+			setMusclenewVal(muscle[IL_L],0.3);
+			setMusclenewVal(muscle[VAS_R],0.3);
+			setMusclenewVal(muscle[VAS_L],0.3);
+			setMusclenewVal(muscle[HAM_R],0.3);
+			setMusclenewVal(muscle[HAM_L],0.3);
+			setMusclenewVal(muscle[SOL_R],0.3);
+			setMusclenewVal(muscle[SOL_L],0.3);
+			setMusclenewVal(muscle[TA_R],0.3);
+			setMusclenewVal(muscle[TA_L],0.3);
+			*/
 			EndTimePoint = std::chrono::system_clock::now();
 			TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 			i++;
-
-			setMusclenewVal(muscle[RF_R],0);
 			std::cout<< "\nDuration time: " << TimeStamp[i-1] << "ms\n";
 			break;
 		}
