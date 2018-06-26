@@ -231,7 +231,7 @@ int muscle_pair [muscle_pair_num][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
 // Pot 7 8 changed
 //int Pot_straight [10] = {2000,2464,1639,2695,2544,2023,1344,1920,1950,2128};			// new 06/23, doublejump 11-14
 //int Pot_straight [10] = {2000,2464,1639,2640,2500,2023,1344,1920,1950,2128};			// new 06/24, new method, jumptake32
-//int Pot_straight [10] = {2000,2464,1539,2540,2500,2023,1344,1920,1950,2128};			// 06/27, start from jumpstep11
+//int Pot_straight [10] = {2000,2464,1539,2540,2500,2023,1344,1920,1950,2128};			// retake to correct posture
 //int Pot_straight [10] = {2000,2464,1539,2540,2500,2023,1344,1920,1950,2378};			// 06/27, start from jumpstep11
 
 //Pot 4 got Impact again!
