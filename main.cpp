@@ -2049,8 +2049,8 @@ int main(int argc, char *argv[]) {
 					setMuscle(muscle[counter1[j]]);
 			}
 
-			//Delay 50ms  -----> may affect jumping performance (?)
-			for (j=0; i<5; j++){
+			//Delay 10ms  -----> may affect jumping performance (?)
+			for (j=0; j<1; j++){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
 				EndTimePoint = std::chrono::system_clock::now();
@@ -2062,6 +2062,16 @@ int main(int argc, char *argv[]) {
 			for (j=0; j<2; j++){
 				setMuscle(muscle[active2[j]]);
 				setMuscle(muscle[counter2[j]]);
+			}
+
+			//Delay 300ms
+			// need 30seq ~300ms to pressurozed muscle to jump
+			for (j=0; j<30; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
 			}
 
 			/*
