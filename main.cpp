@@ -176,7 +176,7 @@
 long SampleNum = SAMPLE_NUM; //20000;
 unsigned long SensorValue[NUM_ADC][NUM_ADC_PORT];
 unsigned long SensorData[SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
-double JointAngle[NUM_OF_POT_SENSOR];
+double JointAngle[SAMPLE_NUM][NUM_OF_POT_SENSOR];
 double SetPoint_Angle[NUM_OF_POT_SENSOR] ={0};
 double AngleError[muscle_pair_num] ={0};
 double MusclePressure[NUM_DAC*NUM_OF_CHANNELS];
@@ -230,7 +230,7 @@ int muscle_pair [muscle_pair_num][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
 
 // Pot 7 8 changed
 //int Pot_straight [10] = {2000,2464,1639,2695,2544,2023,1344,1920,1950,2128};			// new 06/23, doublejump 11-14
-int Pot_straight [10] = {2000,2464,1639,2640,2500,2023,1344,1920,1950,2128};			// new 06/24, new method
+int Pot_straight [10] = {2000,2464,1639,2640,2500,2023,1344,1920,1950,2128};			// new 06/24, new method, jumptake32
 
 
 // Angle on same pressure p=0.3
@@ -510,7 +510,7 @@ unsigned long *read_sensor(unsigned long adc_num,unsigned long* sensorVal){
 //         - NUM_ADC_PORT : ADC board port number
 //     * There is no index here, only all the ADC Value on 1 time
 /***************************************************************/
-void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], double *Angle, double *Pressure){
+void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT], double Angle[][NUM_OF_POT_SENSOR], double *Pressure){
   int j,k,index_adc;
   unsigned long *tmp_val0;
   unsigned long tmp_val[NUM_ADC_PORT];
@@ -529,7 +529,7 @@ void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT
 
       // Getting Angle from Potentiometer
       if (index_adc < NUM_OF_POT_SENSOR){
-				Angle[index_adc] = ADCtoAngle(tmp_val0[k],Pot_straight[index_adc]);
+				Angle[index][index_adc] = ADCtoAngle(tmp_val0[k],Pot_straight[index_adc]);
       }
       // Getting Pressure from Pressure SENSOR
       else if(index_adc >= NUM_OF_POT_SENSOR){
@@ -545,11 +545,11 @@ void read_sensor_all (int index, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT
     }
   }
   // Adjusting Angle direction
-  Angle[0] = -1* Angle[0];
-  Angle[3] = -1* Angle[3];
-  Angle[4] = -1* Angle[4];
-  Angle[6] = -1* Angle[6];
-  Angle[8] = -1* Angle[8];
+  Angle[index][0] = -1* Angle[index][0];
+  Angle[index][3] = -1* Angle[index][3];
+  Angle[index][4] = -1* Angle[index][4];
+  Angle[index][6] = -1* Angle[index][6];
+  Angle[index][8] = -1* Angle[index][8];
 }
 
 void printSensorVal (int i, unsigned long SensorVal[][NUM_ADC][NUM_ADC_PORT]){
@@ -1091,7 +1091,7 @@ void SetFrontalPlaneMuscle (double value){
 void test_sensor (int SampleNum){
   int index,j,k;
   static unsigned long Value[MAX_SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
-	double Angle[NUM_OF_POT_SENSOR];
+	double Angle[SAMPLE_NUM][NUM_OF_POT_SENSOR];
 	double Pressure[NUM_DAC*NUM_OF_CHANNELS];
 
   for(index=0;index<SampleNum;index++){
@@ -1114,7 +1114,7 @@ void test_valve (){
 	int j;
   double val [NUM_OF_MUSCLE],sensorval;
   static unsigned long Value[MAX_SAMPLE_NUM][NUM_ADC][NUM_ADC_PORT];
-	double Angle[NUM_OF_POT_SENSOR];
+	double Angle[SAMPLE_NUM][NUM_OF_POT_SENSOR];
 	double Pressure[NUM_DAC*NUM_OF_CHANNELS];
 
   while(1){
@@ -1283,12 +1283,12 @@ int JointAngleControl (int *jointlist, int N,unsigned long *index){
 			i++;
 
 			printf("Joint %2d. ", j+1);
-			printf("Act: %5.1f  Set: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+			printf("Act: %5.1f  Set: %5.1f\t ", JointAngle[i-1][j], SetPoint_Angle[j]);
 
 			mus1= muscle_pair[j][0];
 			mus2= muscle_pair[j][1];
 
-			state[l]= Controller(SetPoint_Angle[j],JointAngle[j],&AngleError[j],&muscle[mus1],&muscle[mus2]);
+			state[l]= Controller(SetPoint_Angle[j],JointAngle[i-1][j],&AngleError[j],&muscle[mus1],&muscle[mus2]);
 			setMuscle(muscle[mus1]);
 			setMuscle(muscle[mus2]);
 
@@ -1314,7 +1314,7 @@ int JointAngleControl (int *jointlist, int N,unsigned long *index){
 
 				mus1= muscle_pair[k%2+10][0];
 				mus2= muscle_pair[k%2+10][1];
-				state[l]= Controller(SetPoint_Angle[j],JointAngle[j],&AngleError[j],&muscle[mus1],&muscle[mus2]);
+				state[l]= Controller(SetPoint_Angle[j],JointAngle[i-1][j],&AngleError[j],&muscle[mus1],&muscle[mus2]);
 				setMuscle(muscle[mus1]);
 				setMuscle(muscle[mus2]);
 
@@ -1354,12 +1354,12 @@ int AllAngleControl (unsigned long *index, int doRF){
 
 			printf("%5d ", i);
 			printf("Joint%2d ", j+1);
-			printf("Act:%5.1f Set:%5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+			printf("Act:%5.1f Set:%5.1f\t ", JointAngle[i-1][j], SetPoint_Angle[j]);
 
 			mus1= muscle_pair[j][0];
 			mus2= muscle_pair[j][1];
 
-			state[j]= Controller(SetPoint_Angle[j],JointAngle[j],&AngleError[j],&muscle[mus1],&muscle[mus2]);
+			state[j]= Controller(SetPoint_Angle[j],JointAngle[i-1][j],&AngleError[j],&muscle[mus1],&muscle[mus2]);
 			setMuscle(muscle[mus1]);
 			setMuscle(muscle[mus2]);
 
@@ -1394,12 +1394,12 @@ int AllAngleControl (unsigned long *index, int doRF){
 
 			printf("%5d ", i);
 			printf("Joint%2d ", j+1);
-			printf("Act:%5.1f Set:%5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+			printf("Act:%5.1f Set:%5.1f\t ", JointAngle[i-1][j], SetPoint_Angle[j]);
 
 			mus1= muscle_pair[k%2+10][0];
 			mus2= muscle_pair[k%2+10][1];
 
-			state[j]= Controller(SetPoint_Angle[j],JointAngle[j],&AngleError[k%2+10],&muscle[mus1],&muscle[mus2]);
+			state[j]= Controller(SetPoint_Angle[j],JointAngle[i-1][j],&AngleError[k%2+10],&muscle[mus1],&muscle[mus2]);
 			setMuscle(muscle[mus1]);
 			setMuscle(muscle[mus2]);
 
@@ -1533,13 +1533,14 @@ int main(int argc, char *argv[]) {
 			StartTimePoint = std::chrono::system_clock::now();
 
 
-	    for (i=0;i<SampleNum;i++){
+	    for (i=0;i<SampleNum;){
 	      read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 	      //measure_IMU(&device,&mtPort, outputMode, outputSettings, &quaternion,&euler,&calData,&sample_time);
 				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
 
 				EndTimePoint = std::chrono::system_clock::now();
 				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
 
 				laps2 = clock();
 				double elapsed = double(laps2 - laps1) / CLOCKS_PER_SEC;
@@ -1562,7 +1563,7 @@ int main(int argc, char *argv[]) {
 				}
 				else if (in2=='2'){
 					for (j = 0; j<NUM_OF_POT_SENSOR;j++){
-						printf("%.1f\t", JointAngle[j]);
+						printf("%.1f\t", JointAngle[i-1][j]);
 					}
 				}
 				else if (in2=='3'){
@@ -1619,14 +1620,15 @@ int main(int argc, char *argv[]) {
 				j = joint-1;
 				while(!_kbhit()){
 					read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+					i++;
 					mus1= muscle_pair[j][0];
 					mus2= muscle_pair[j][1];
-					state= Controller(0,JointAngle[j],&AngleError[j],&muscle[mus1],&muscle[mus2]);
+					state= Controller(0,JointAngle[i-1][j],&AngleError[j],&muscle[mus1],&muscle[mus2]);
 					setMuscle(muscle[mus1]);
 					setMuscle(muscle[mus2]);
 
 					printf("\r");
-					printf("Angle: %5.1f", JointAngle[j]);
+					printf("Angle: %5.1f", JointAngle[i-1][j]);
 					usleep(50000);
 				}
 			}
@@ -1666,9 +1668,10 @@ int main(int argc, char *argv[]) {
 						TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 
 						read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+						i++;
 						printf("\n");
 						//printf("\r");
-						Input = JointAngle[joint-1];
+						Input = JointAngle[i-1][joint-1];
 						printf("%.1f\t%.1f\t", SetPoint_Angle[joint-1], Input);
 
 
@@ -1689,7 +1692,6 @@ int main(int argc, char *argv[]) {
 						// if logging
 						if ((logflag==1)||(logflag==2))
 							logflag = entrylog(i,SensorData,SetPoint_Angle,IMUData);
-						i++;
 					}
 					printf("\n");
 				}
@@ -1753,12 +1755,12 @@ int main(int argc, char *argv[]) {
 							i++;
 
 							printf("Joint %2d. ", j+1);
-							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[i-1][j], SetPoint_Angle[j]);
 
 							mus1= muscle_pair[j][0];
 							mus2= muscle_pair[j][1];
 
-							state= BangBang(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+							state= BangBang(SetPoint_Angle[j],JointAngle[i-1][j],&muscle[mus1],&muscle[mus2]);
 							setMuscle(muscle[mus1]);
 							setMuscle(muscle[mus2]);
 
@@ -1789,12 +1791,12 @@ int main(int argc, char *argv[]) {
 							i++;
 
 							printf("Joint %2d. ", j+1);
-							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[j], SetPoint_Angle[j]);
+							printf("Act: %5.1f\t SetPoint: %5.1f\t ", JointAngle[i-1][j], SetPoint_Angle[j]);
 
 							mus1= muscle_pair[k%2+10][0];
 							mus2= muscle_pair[k%2+10][1];
 
-							state= BangBang(SetPoint_Angle[j],JointAngle[j],&muscle[mus1],&muscle[mus2]);
+							state= BangBang(SetPoint_Angle[j],JointAngle[i-1][j],&muscle[mus1],&muscle[mus2]);
 							setMuscle(muscle[mus1]);
 							setMuscle(muscle[mus2]);
 
@@ -2017,16 +2019,16 @@ int main(int argc, char *argv[]) {
 				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 				i++;
 
-				sw = ((JointAngle[4] < sw_angle) || (JointAngle[5] < sw_angle));
+				sw = ((JointAngle[i-1][4] < sw_angle) || (JointAngle[i-1][5] < sw_angle));
 
 				printf ("\r");
-				printf("Knee Joint5: %.2f\t Joint6: %.2f\t", JointAngle[4], JointAngle[5]);
+				printf("Knee Joint5: %.2f\t Joint6: %.2f\t", JointAngle[i-1][4], JointAngle[i-1][5]);
 			}
 
 			// ======= JUMP #1 ============================================================
 
 			// Jumping activation set
-			std::cout << "\nJUMP!\n";
+			std::cout << "\n" << i <<"\tJUMP!\n";
 
 			for (j=0; j<6; j++){
 				muscle[active1[j]].value = MAX_PRESSURE;
@@ -2076,13 +2078,13 @@ int main(int argc, char *argv[]) {
 				i++;
 				// jump switch = ankle < 0. reset after 100ms
 				if (!flagged){
-					if ((JointAngle[6] < 0) || (JointAngle[7] < 0)){
+					if ((JointAngle[i-1][6] < 0) || (JointAngle[i-1][7] < 0)){
 						j=40;
 						flagged = 1;
 					}
 				}
 				printf ("\r");
-				printf("Joint5: %.2f\t Joint6: %.2f\t", JointAngle[4], JointAngle[5]);
+				printf("Joint5: %.2f\t Joint6: %.2f\t", JointAngle[i-1][4], JointAngle[i-1][5]);
 			}
 
 			//set RF=0,GMAX =0.5, IL HAM = 0.6
@@ -2124,10 +2126,10 @@ int main(int argc, char *argv[]) {
 				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 				i++;
 
-				sw = ((JointAngle[4] < sw_angle) || (JointAngle[5] < sw_angle));
+				sw = ((JointAngle[i-1][4] < sw_angle) || (JointAngle[i-1][5] < sw_angle));
 
 				printf ("\r");
-				printf("Joint5: %.2f\t Joint6: %.2f\t", JointAngle[4], JointAngle[5]);
+				printf("Joint5: %.2f\t Joint6: %.2f\t", JointAngle[i-1][4], JointAngle[i-1][5]);
 			}
 
 
@@ -2161,13 +2163,12 @@ int main(int argc, char *argv[]) {
 			}
 			*/
 
-
+			/**/
 			// ===================================================================================
 			// ==================== TRANSITION ===================================================
 
 			// Landing Preparation
-			// activation switch based on joint angle
-			// needed time from release->jump =~ 400ms. break when already jump.
+			// activation switch based on ankle joint  ===> impact on landing
 			flagged = 0;
 			sw=0;
 			while (!sw){
@@ -2177,9 +2178,9 @@ int main(int argc, char *argv[]) {
 				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 				i++;
 
-				sw = ((JointAngle[6] >0) || (JointAngle[7] > 0));
+				sw = ((JointAngle[i-1][6] > JointAngle[i-2][6]) || (JointAngle[i-1][7] > JointAngle[i-2][6]));
 				printf ("\r");
-				printf("Ankle Joint7: %.2f\t Joint8: %.2f\t", JointAngle[6], JointAngle[7]);
+				printf("Ankle Joint7: %.2f\t Joint8: %.2f\t", JointAngle[i-1][6], JointAngle[i-1][7]);
 			}
 
 			// ===================================================================================
@@ -2198,6 +2199,7 @@ int main(int argc, char *argv[]) {
 
 			// ===================================================================================
 			// ======= STEP  ====================================
+			std::cout << "\n" << i <<"\tSTEP!\n";
 			// SWING
 			muscle[gait1[0]].value=0.8;
 			muscle[gait1[1]].value=0;
@@ -2257,6 +2259,7 @@ int main(int argc, char *argv[]) {
 			for(j=0;j<3;j++){
 				setMuscle(muscle[gait3[j]]);
 			}
+			/**/
 
 			// ===================================================================================
 			// ==================== END OF MOTION=================================================
