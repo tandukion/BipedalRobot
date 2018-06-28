@@ -235,7 +235,9 @@ int muscle_pair [muscle_pair_num][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
 //int Pot_straight [10] = {2000,2464,1539,2540,2500,2023,1344,1920,1950,2378};			// 06/27, start from jumpstep11
 
 //Pot 4 got Impact again!
-int Pot_straight [10] = {2000,2464,1539,2150,2500,2023,1344,1920,1950,2378};			// 06/27, start from jumpstep15
+//int Pot_straight [10] = {2000,2464,1539,2150,2500,2023,1344,1920,1950,2378};			// 06/27, start from jumpstep15
+																																									// good for jumpstep22, jumpstep35
+int Pot_straight [10] = {2000,2464,1589,2200,2500,2023,1344,1920,1950,2378};			// 06/29
 
 // Angle on same pressure p=0.3
 int Pot_Psame 	[10] = {1820,2665,2383,3034,2641,1817,1573,1759,2199,2134};
@@ -2270,7 +2272,7 @@ int main(int argc, char *argv[]) {
 
 			// -- GAIT2 --
 			//delay
-			for (j=0; j<10; j++){
+			for (j=0; j<5; j++){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
 				EndTimePoint = std::chrono::system_clock::now();
@@ -2285,6 +2287,13 @@ int main(int argc, char *argv[]) {
 			setMuscle(muscle[thrust2[0]]);
 			for(j=0;j<3;j++){
 				setMuscle(muscle[nthrust2[j]]);
+			}
+			for (j=0; j<5; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
 			}
 			// SWING
 			setMusclenewVal(muscle[gait1[1]],0);
