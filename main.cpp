@@ -2309,7 +2309,8 @@ int main(int argc, char *argv[]) {
 
 			// -- GAIT3 --
 			//delay
-			for (j=0; j<30; j++){
+			// 30 for BEST on jumpstep36
+			for (j=0; j<20; j++){
 				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
 				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
 				EndTimePoint = std::chrono::system_clock::now();
