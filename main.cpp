@@ -2353,9 +2353,9 @@ int main(int argc, char *argv[]) {
 			//ResetAllValve();
 			break;
 		}
-		// ==================================================================================================
+		// ======================================================================================================================================================
 		// 												STEPPING
-		// ==================================================================================================
+		// ======================================================================================================================================================
 		case 10:{
 			printf("Stepping Gait\n");
 
@@ -2367,11 +2367,9 @@ int main(int argc, char *argv[]) {
 			// ==============================================================================
 			// ==================== SETUP ===================================================
 
-			//  ----- JUMPING Activation ----
-			int active1 [6] = {GMAX_R, GMAX_L, VAS_R, VAS_L, RF_R, RF_L};
-			int counter1[4] = {IL_R, IL_L, HAM_R, HAM_L};
-			int active2 [2] = {SOL_R, SOL_L};//, TP_R, TP_L, FB_R, FB_L};
-			int counter2[2] = {TA_R, TA_L};
+			// ------ STEPPING Activation ----
+			/**/
+			// Right Support Left Swing
 			// ------- THRUST -----
 			int thrust1[] = {RF_R,GMAX_R};
 			int nthrust1[] ={HAM_R,IL_R};
@@ -2383,7 +2381,21 @@ int main(int argc, char *argv[]) {
 			int gait3 [3] = {GMAX_L,HAM_L,RF_L};
 
 			int mussteprelease[]= {IL_L_CH,GMAX_L_CH,VAS_L_CH,HAM_L_CH,TA_L_CH,SOL_L_CH,RF_L_CH,};
+			/**/
+			/*
+			// Left Support Right Swing
+			// ------- THRUST -----
+			int thrust1[] = {RF_L,GMAX_L};
+			int nthrust1[] ={HAM_L,IL_L};
+			int thrust2[] = {TA_L};
+			int nthrust2[]=	{SOL_L,TP_L,FB_L};
+			// ------- SWING ----------
+			int gait1 [2] = {IL_R, HAM_R};
+			int gait2 [3] = {RF_R,VAS_R,TA_R};
+			int gait3 [3] = {GMAX_R,HAM_R,RF_R};
 
+			int mussteprelease[]= {IL_R_CH,GMAX_R_CH,VAS_R_CH,HAM_R_CH,TA_R_CH,SOL_R_CH,RF_R_CH,};
+			*/
 
 			jointnum=2;
 			jointlist = new int[jointnum];
@@ -2465,8 +2477,10 @@ int main(int argc, char *argv[]) {
 			// for after jumping
 			//setMusclenewVal(muscle[ADD_R],0.8);
 			// for standing
-			//setMusclenewVal(muscle[ABD_R],0.8);
-			setMusclenewVal(muscle[FB_R],0.8);
+			setMusclenewVal(muscle[ABD_R],0.8);
+			//setMusclenewVal(muscle[FB_R],0.8);
+			setMusclenewVal(muscle[TA_R],0);
+			setMusclenewVal(muscle[SOL_R],0);
 
 
 			// -- GAIT2 --
