@@ -237,7 +237,10 @@ int muscle_pair [muscle_pair_num][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
 //Pot 4 got Impact again!
 //int Pot_straight [10] = {2000,2464,1539,2150,2500,2023,1344,1920,1950,2378};			// 06/27, start from jumpstep15
 																																									// good for jumpstep22, jumpstep35
-int Pot_straight [10] = {2000,2464,1589,2200,2500,2023,1344,1920,1950,2378};			// 06/29
+//int Pot_straight [10] = {2000,2464,1589,2200,2500,2023,1344,1920,1950,2378};			// 06/29,  jumpstep36
+
+//Pot 3 crash!
+int Pot_straight [10] = {2000,2464,1057,2223,2500,2023,1344,1920,1950,2378};			// 06/29,  jumpstep36
 
 // Angle on same pressure p=0.3
 int Pot_Psame 	[10] = {1820,2665,2383,3034,2641,1817,1573,1759,2199,2134};
@@ -2459,7 +2462,11 @@ int main(int argc, char *argv[]) {
 
 			setMusclenewVal(muscle[RF_R],0);
 			setMusclenewVal(muscle[HAM_R],0.2);
-			setMusclenewVal(muscle[ADD_R],0.8);
+			// for after jumping
+			//setMusclenewVal(muscle[ADD_R],0.8);
+			// for standing
+			//setMusclenewVal(muscle[ABD_R],0.8);
+			setMusclenewVal(muscle[FB_R],0.8);
 
 
 			// -- GAIT2 --
