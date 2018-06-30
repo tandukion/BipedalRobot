@@ -2128,9 +2128,9 @@ int main(int argc, char *argv[]) {
 
 			//set RF=0,GMAX =0.5, IL HAM = 0.6
 			// Knee Flexing
-			setMusclenewVal(muscle[active1[4]],0.1);		//setMusclenewVal(muscle[active1[4]],0);		//RF
+			setMusclenewVal(muscle[active1[4]],0);		//RF  //setMusclenewVal(muscle[active1[4]],0.1);		//
 			setMusclenewVal(muscle[active1[5]],0);
-			setMusclenewVal(muscle[counter1[2]],0.3);	//setMusclenewVal(muscle[counter1[2]],0.2);	//HAM
+			setMusclenewVal(muscle[counter1[2]],0.2);	//HAM //setMusclenewVal(muscle[counter1[2]],0.3);	//
 			//setMusclenewVal(muscle[counter1[3]],0.2);
 			// Ankle Right flexion
 			setMusclenewVal(muscle[SOL_R],0);
