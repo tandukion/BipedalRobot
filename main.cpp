@@ -240,7 +240,10 @@ int muscle_pair [muscle_pair_num][2] = {{IL_R,GMAX_R}, {IL_L,GMAX_L},
 //int Pot_straight [10] = {2000,2464,1589,2200,2500,2023,1344,1920,1950,2378};			// 06/29,  jumpstep36
 
 //Pot 3 crash!
-int Pot_straight [10] = {2000,2464,1057,2223,2500,2023,1344,1920,1950,2378};			// 06/29,  jumpstep36
+//int Pot_straight [10] = {2000,2464,1057,2223,2500,2023,1344,1920,1950,2378};			// 06/30,  step8-12,jumpstep37-39
+
+//Pot 3 crash!
+int Pot_straight [10] = {2000,2464,832,2273,2500,2023,1344,1920,2150,2578};			// 06/30, jumpstep40-48
 
 // Angle on same pressure p=0.3
 int Pot_Psame 	[10] = {1820,2665,2383,3034,2641,1817,1573,1759,2199,2134};
@@ -2037,6 +2040,19 @@ int main(int argc, char *argv[]) {
 
 			// ======= PRE JUMP #1 ============================================================
 			//releasing muscle tension
+			//release SOL TA first to
+			setMusclenewVal(muscle[SOL_R],0);
+			setMusclenewVal(muscle[SOL_L],0);
+			setMusclenewVal(muscle[TA_R],0);
+			setMusclenewVal(muscle[TA_L],0);
+			//Delay 50ms  -----> may affect jumping performance (?)
+			for (j=0; j<5; j++){
+				read_sensor_all(i,SensorData,JointAngle,MusclePressure);
+				measure_IMU(&device,&mtPort, outputMode, outputSettings, &IMUData[i]);
+				EndTimePoint = std::chrono::system_clock::now();
+				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
+				i++;
+			}
 			ResetValve(musjumprelease);
 
 			// activation switch based on joint angle. knee < sw_angle 25
@@ -2112,10 +2128,10 @@ int main(int argc, char *argv[]) {
 
 			//set RF=0,GMAX =0.5, IL HAM = 0.6
 			// Knee Flexing
-			setMusclenewVal(muscle[active1[4]],0);		//RF
+			setMusclenewVal(muscle[active1[4]],0.1);		//setMusclenewVal(muscle[active1[4]],0);		//RF
 			setMusclenewVal(muscle[active1[5]],0);
-			setMusclenewVal(muscle[counter1[2]],0.2);	//HAM
-			setMusclenewVal(muscle[counter1[3]],0.2);
+			setMusclenewVal(muscle[counter1[2]],0.3);	//setMusclenewVal(muscle[counter1[2]],0.2);	//HAM
+			//setMusclenewVal(muscle[counter1[3]],0.2);
 			// Ankle Right flexion
 			setMusclenewVal(muscle[SOL_R],0);
 			setMusclenewVal(muscle[TA_R],0.6);
@@ -2282,6 +2298,8 @@ int main(int argc, char *argv[]) {
 				TimeStamp[i] =  std::chrono::duration_cast<std::chrono::milliseconds> (EndTimePoint-StartTimePoint).count();
 				i++;
 			}
+			// VAS first
+			setMusclenewVal(muscle[VAS_R],0.8);
 			//THRUST with SOL
 			muscle[thrust2[0]].value=0;	//TA
 			muscle[nthrust2[0]].value=0.8;
